@@ -29,15 +29,18 @@ def check_exists_ask_overwrite(destpath):
     if os.path.exists(destpath):
         path = os.path.dirname(destpath)
         name, ext = os.path.splitext(os.path.basename(destpath))
-        answer = tkmsgbox.askyesnocancel(title="file " + name + ext + " exists already", message="overwrite?")
+        answer = tkmsgbox.askyesnocancel(title="file " + name + ext + " exists already", message="overwrite? YES=overwrite, NO=copy, CANCEL=skip that file")
         if answer == False: 
             i = 2
             regex = r'\([2-9]\)'
-            if re.search(regex, name) == True:
+            match0 = re.search(regex, name)
+            if  match0:
                 regex = r'[2-9]'
-                match = re.search(regex, name)
+                match = re.search(regex, match0.group())
                 i = int(match.group()) + 1
-            destpath = os.path.join(path, name + "(" + str(i) + ")" + ext)
+                name = name[0 : str(name).rfind("(")]
+            name = name + "(" + str(i) + ")" 
+            destpath = os.path.join(path, name + ext)
             destpath = check_exists_ask_overwrite(destpath)
         elif answer == None:
             destpath = None
@@ -80,12 +83,15 @@ for folder in dir_list:
         act_destpath = os.path.join(work_path, newname_list[i])
         act_destpath = check_exists_ask_overwrite(act_destpath)
         print(pic)
-        print(newname_list[i])
+        if act_destpath != None:
+            print(os.path.basename(act_destpath))
+        else:
+            print(newname_list[i])
         if act_destpath == None:
             print("skiped!\n")
         else:
             try:
-                #shutilcopy2(os.path.join(act_folderpath, pic), act_destpath)
+                shutilcopy2(os.path.join(act_folderpath, pic), act_destpath)
                 print("OK (copied successful)")
             except Exception as e:
                 print("error:" + str(e))
