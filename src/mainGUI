@@ -1,0 +1,289 @@
+import tkinter as tk
+from tkinter import ttk 
+from tkinter import Frame
+from tkinter import Button
+from tkinter import Label
+from tkinter import filedialog
+import tkinter.messagebox as tkmsgbox
+import os
+import re
+import datetime
+import copy
+from shutil import copy2 as shutilcopy2
+
+import helperfunctions as hlpfnc
+
+CURSORTEXT_OFFX = 5
+CURSORTEXT_OFFY = 22
+CANVAS_WIDTH = 4000
+CANVAS_HEIGHT = 100
+
+
+
+class App():
+
+    def __init__ (self):
+        self.glob_workpath = None  # global workpath (folder)
+        self.glob_list_sourcedir = [] # global list of source directories (subfolders) in workpath folder
+        self.glob_list_pics = [] # global list of files workpath folder (without subfolder)
+        #self.glob_list_sources = [] # global list of sources (cameras) for timeline
+        self.glob_timelinetable =[] # table used to draw timeline
+        self.glob_tstamp_min = 0
+        self.glob_tstamp_max = 0
+        self.glob_tline_start_pix = 0
+        self.glob_tline_end_pix = CANVAS_WIDTH
+        self.glob_tline_factor_pix = 1
+        self.glob_source_colors = (
+            'red', 'green', 'blue', 'yellow', 'magenta', 'cyan', 'orange', 'purple',
+            'dark green', 'navy', 'maroon', 'olive', 'teal', 'brown', 'slate gray'
+        )
+        self.glob_move_mode_all = 0 # which pics to move on the timeline: 0=just the one, 1=all with same source
+
+       # graphical elements
+        self.rootW = None
+        self.frame1 = None
+        self.frame2 = None
+        self.canvas_Tline = None
+        self.timescroll = None
+        self.cursorText = None
+        self.btn_workpath = None
+        self.btn_merge = None
+        self.btn_rename = None
+        self.create_window()
+
+    def create_window(self):
+        self.rootW = tk.Tk()
+        self.rootW.title("PhotoCombiner")
+        self.rootW.resizable(width=True, height=True)
+        self.rootW.minsize(800, 600)
+        self.rootW.geometry('800x600')
+        self.rootW.state('zoomed')
+
+        # frame 1 working path
+        self.frame1 = Frame(self.rootW)
+        self.frame1.pack()
+        lbl_workpath = Label(self.frame1, text="working path(folder):")
+        self.var_workpathvalue = tk.StringVar()
+        lbl_workpathvalue = Label(self.frame1, textvariable=self.var_workpathvalue)
+        self.btn_workpath = tk.Button(self.frame1, text="...",command=self.on_click_btn_workpath)
+        lbl_workpath.pack(side='left' )
+        lbl_workpathvalue.pack(side='left')
+        self.btn_workpath.pack(side='left')
+        self.btn_merge = tk.Button(self.frame1, text="merge from sources",command=self.on_click_btn_merge, state=tk.DISABLED)
+        self.btn_merge.pack(side='left')
+        self.btn_rename = tk.Button(self.frame1, text="rename moved pics",command=self.on_click_btn_rename, state=tk.DISABLED)
+        self.btn_rename.pack(side='left')
+
+        # frame 2 Canvas
+        self.frame2 = Frame(self.rootW)
+        self.frame2.pack(side='bottom', expand=True, fill='x')
+        self.canvas_Tline = tk.Canvas(self.frame2, bg='white', scrollregion=(0,0,CANVAS_WIDTH, CANVAS_HEIGHT))
+        self.timescroll = tk.Scrollbar(self.frame2, orient='horizontal', command=self.canvas_Tline.xview)
+        self.timescroll.pack(side='bottom', fill='x')
+        self.canvas_Tline.pack(side='bottom', expand=False, fill='x')
+        self.canvas_Tline.configure(xscrollcommand=self.timescroll.set)
+        self.cursorText = self.canvas_Tline.create_text(1, 1, fill='black', text='')
+    
+    ### events
+
+    def on_click_btn_workpath(self):
+        self.set_workpath()
+        if len(self.glob_list_sourcedir) > 0:
+            self.btn_merge.configure(state=tk.NORMAL)
+        if len(self.glob_list_pics) > 0:
+                self.create_timeline()
+
+    
+    def on_click_btn_merge(self):
+        if self.glob_workpath is not None:
+            self.merge_pics_from_sourcefolders(self.glob_workpath)
+        if len(self.glob_list_pics) > 0:
+                self.create_timeline()
+
+    def on_click_btn_rename(self):
+        if self.glob_workpath is not None and len(self.glob_list_pics) > 0:
+            hlpfnc.rename_moved_files(self.glob_timelinetable, self.glob_workpath)
+
+
+    def on_drag_start(self, event):
+        event.widget.drag_data = {'x': event.x, 'y': event.y}
+
+
+    def on_drag_motion(self, event):
+        x, y = event.x - event.widget.drag_data['x'], event.y - event.widget.drag_data['y'] 
+        tag = event.widget.gettags(tk.CURRENT)[self.glob_move_mode_all]
+        self.canvas_Tline.move(tag, x, 0)
+        #event.widget.move(tk.CURRENT, x, 0)
+        event.widget.drag_data = {'x': event.x, 'y': event.y}
+
+
+    def on_drag_end(self, event):
+        new_x = event.x
+        pic_name = event.widget.gettags(tk.CURRENT)[0]
+        pic_source = event.widget.gettags(tk.CURRENT)[1]
+        source_index=hlpfnc.get_source_index(self.glob_timelinetable, pic_source)
+        if source_index > -1:
+            pic_index = hlpfnc.get_picname_index(self.glob_timelinetable[source_index], pic_name)
+            if pic_index > -1:
+                if self.glob_move_mode_all == 0:
+                  self.glob_timelinetable[source_index][pic_index][2] = self.pixel_to_tstamp(new_x)
+                elif self.glob_move_mode_all == 1:
+                    delta_x = self.pixel_to_tstamp(new_x) - self.glob_timelinetable[source_index][pic_index][2]
+                    for i in range(len(self.glob_timelinetable[source_index])):
+                        self.glob_timelinetable[source_index][i][2] = self.glob_timelinetable[source_index][i][1] + delta_x
+                self.btn_rename.configure(state=tk.NORMAL)
+
+    def on_move_mode_change(self, event, mode):
+        if mode == 0:
+            self.glob_move_mode_all = 0
+            self.canvas_Tline.itemconfigure(self.cursorText, text="1")
+        else: 
+            self.glob_move_mode_all = 1
+            self.canvas_Tline.itemconfigure(self.cursorText, text="all")
+        #self.canvas_Tline.coords(self.cursorText, event.x + CURSORTEXT_OFFX + self.canvas_Tline.xview()[0]*CANVAS_WIDTH, event.y + CURSORTEXT_OFFY)
+
+
+    def on_show_mouse_menu(self, event):
+        # Create a menu
+        popup_menu = tk.Menu(self.rootW, tearoff=0)
+        popup_menu.add_command(label="move this pic only", command=lambda: self.on_move_mode_change(event, mode=0))
+        popup_menu.add_command(label="move all pics from same source", command=lambda: self.on_move_mode_change(event, mode=1))
+        # Display the menu at the right-click position
+        popup_menu.post(event.x_root, event.y_root)
+
+
+    def on_mouse_motion_canvas(self, event):
+        self.canvas_Tline.coords(self.cursorText, event.x + CURSORTEXT_OFFX + self.canvas_Tline.xview()[0]*CANVAS_WIDTH, event.y + CURSORTEXT_OFFY)
+
+
+    def on_mouse_enter_canvas(self, event):
+        if self.glob_move_mode_all == 0:
+            self.canvas_Tline.itemconfigure(self.cursorText, text="1")
+        elif self.glob_move_mode_all == 1:
+            self.canvas_Tline.itemconfigure(self.cursorText, text="all")
+        
+
+    def on_mouse_leave_canvas(self, event):
+        self.canvas_Tline.itemconfigure(self.cursorText, text='')  #trick to make label disapear when cursor not over canvas 
+
+
+    def create_pic_triangle(self, tstamp , description, source, color):
+        x = self.tstamp_to_pixel(tstamp)
+        y = 15  # Adjust the y-position if needed
+        act_tags = (description, source)
+        triangle = self.canvas_Tline.create_polygon(x, y, x-5, y-10, x+5, y-10, fill=color, tags=act_tags)
+        line = self.canvas_Tline.create_line(x, y, x, y+40, fill=color, tags=act_tags)
+        text = self.canvas_Tline.create_text(x, y + len(description)*4 + 10, angle=90, fill=color, text=description, tags=act_tags)
+        self.canvas_Tline.bind('<ButtonPress-3>', self.on_show_mouse_menu)
+        self.canvas_Tline.tag_bind(source, '<ButtonPress-1>', self.on_drag_start)
+        self.canvas_Tline.tag_bind(source, '<B1-Motion>', self.on_drag_motion)
+        self.canvas_Tline.tag_bind(source, '<ButtonRelease-1>', self.on_drag_end)
+        self.canvas_Tline.bind("<Enter>", self.on_mouse_enter_canvas)
+        self.canvas_Tline.bind("<Leave>", self.on_mouse_leave_canvas)
+        self.canvas_Tline.bind("<Motion>", self.on_mouse_motion_canvas)
+         
+    ### functions
+
+    def set_workpath(self):
+        # Open a file dialog for opening a file
+        self.glob_workpath = filedialog.askdirectory()
+        if self.glob_workpath is not None:
+            item_list = os.listdir(self.glob_workpath)
+            self.glob_list_sourcedir = list(filter(lambda x: os.path.isdir(os.path.join(self.glob_workpath, x)), item_list))
+            self.glob_list_pics = list(filter(lambda x: hlpfnc.is_pic(x) or hlpfnc.is_video(x), item_list))
+            self.var_workpathvalue.set(self.glob_workpath)
+
+    def create_timeline(self): 
+        list_sources = [x[0][3] for x in self.glob_timelinetable ]
+        self.canvas_Tline.delete(list_sources)         
+        self.glob_timelinetable = hlpfnc.create_timeline_table(self.glob_list_pics)
+        self.glob_tstamp_min, self.glob_tstamp_max = hlpfnc.calc_tline_minmax(self.glob_timelinetable)
+        self.glob_tline_start_pix, self.glob_tline_end_pix, self.glob_tline_factor_pix = hlpfnc.calc_tline_minmax_pixel(0,CANVAS_WIDTH,self.glob_tstamp_min -500, self.glob_tstamp_max + 500)
+        for i, source in enumerate(self.glob_timelinetable):
+            self.draw_pics_one_source(source, self.glob_source_colors[i])
+
+    def draw_pics_one_source(self, srctable, color):
+        for record in srctable:
+            self.create_pic_triangle(record[1], record[0], record[3], color)
+
+    def tstamp_to_pixel(self, tstamp):
+        return round(self.glob_tline_start_pix + (tstamp-self.glob_tstamp_min)*self.glob_tline_factor_pix)
+    
+    def pixel_to_tstamp(self, pixel):
+        return round(self.glob_tstamp_min + (pixel-self.glob_tline_start_pix)/self.glob_tline_factor_pix)
+
+
+    def check_exists_ask_overwrite(self, destpath):
+        if os.path.exists(destpath):
+            path = os.path.dirname(destpath)
+            name, ext = os.path.splitext(os.path.basename(destpath))
+            answer = tkmsgbox.askyesnocancel(title="file " + name + ext + " exists already", message="overwrite? YES=overwrite, NO=copy, CANCEL=skip that file")
+            if answer == False: 
+                i = 2
+                regex = r'\([2-9]\)'
+                match0 = re.search(regex, name)
+                if  match0:
+                    regex = r'[2-9]'
+                    match = re.search(regex, match0.group())
+                    i = int(match.group()) + 1
+                    name = name[0 : str(name).rfind("(")]
+                name = name + "(" + str(i) + ")" 
+                destpath = os.path.join(path, name + ext)
+                destpath = self.check_exists_ask_overwrite(destpath)
+            elif answer == None:
+                destpath = None
+        return destpath
+
+    def merge_pics_from_sourcefolders(self, workpath):
+        item_list = os.listdir(workpath)
+        self.glob_list_sourcedir = list(filter(lambda x: os.path.isdir(os.path.join(workpath, x)), item_list))
+        act_folderpath = workpath
+        for folder in self.glob_list_sourcedir:
+            act_folderpath = os.path.join(workpath, folder)
+            pic_list = [file for file in os.listdir(act_folderpath) if hlpfnc.is_pic(file) or hlpfnc.is_video(file)] 
+            newname_list = copy.deepcopy(pic_list)
+            for i, pic in enumerate(pic_list):
+                pic_name, pic_ext = os.path.splitext(pic)
+                if hlpfnc.is_video(pic):
+                    tmp_name = "VID" 
+                else:
+                    tmp_name = "IMG"
+                tmp_datetimepatrn = hlpfnc.get_date_time_from_name(pic_name)
+                if tmp_datetimepatrn == None: # take creation time if not in name already
+                    creation_time_sec1970 = os.path.getctime(os.path.join(act_folderpath, pic))
+                    tmp_datetimepatrn = hlpfnc.timestamp_to_filenamedatetm(creation_time_sec1970)
+                    tmp_info = pic_name[pic_name.find("_") : ]
+                else:
+                    tmp_info = pic_name[pic_name.find(tmp_datetimepatrn)+len(tmp_datetimepatrn) : ]
+                tmp_name = tmp_name + "_" +  tmp_datetimepatrn + "__" + tmp_info
+                if pic.find("PANO") > -1:
+                    tmp_name = tmp_name + "_" + "PANO"
+                tmp_name = tmp_name + "_" + folder + pic_ext
+                newname_list[i] = tmp_name
+                
+            for i, pic in enumerate(pic_list):
+                act_destpath = os.path.join(workpath, newname_list[i])
+                act_destpath = self.check_exists_ask_overwrite(act_destpath)
+                print(pic)
+                if act_destpath != None:
+                    print(os.path.basename(act_destpath))
+                else:
+                    print(newname_list[i])
+                if act_destpath == None:
+                    print("skiped!\n")
+                else:
+                    try:
+                        shutilcopy2(os.path.join(act_folderpath, pic), act_destpath)
+                        print("OK (copied successful)")
+                    except Exception as e:
+                        print("error:" + str(e))
+                    finally:
+                        print('\n') 
+        
+        item_list = os.listdir(workpath)
+        self.glob_list_pics = list(filter(lambda x: hlpfnc.is_pic(x) or hlpfnc.is_video(x), item_list))
+
+
+
+app = App()
+app.rootW.mainloop()
