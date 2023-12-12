@@ -7,7 +7,7 @@ from tkinter import filedialog
 import tkinter.messagebox as tkmsgbox
 import os
 import re
-import datetime
+from datetime import datetime
 import copy
 from shutil import copy2 as shutilcopy2
 
@@ -59,7 +59,7 @@ class App():
         self.rootW.geometry('800x600')
         self.rootW.state('zoomed')
 
-        # frame 1 working path
+        # frame 1 working path and buttons
         self.frame1 = Frame(self.rootW)
         self.frame1.pack()
         lbl_workpath = Label(self.frame1, text="working path(folder):")
@@ -74,9 +74,11 @@ class App():
         self.btn_rename = tk.Button(self.frame1, text="rename moved pics",command=self.on_click_btn_rename, state=tk.DISABLED)
         self.btn_rename.pack(side='left')
 
-        # frame 2 Canvas
+        # frame 2 Canvas timeline
         self.frame2 = Frame(self.rootW)
         self.frame2.pack(side='bottom', expand=True, fill='x')
+        self.lbl_curs_pos = Label(self.frame2, text = "0")
+        self.lbl_curs_pos.pack(side='bottom')
         self.canvas_Tline = tk.Canvas(self.frame2, bg='white', scrollregion=(0,0,CANVAS_WIDTH, CANVAS_HEIGHT))
         self.timescroll = tk.Scrollbar(self.frame2, orient='horizontal', command=self.canvas_Tline.xview)
         self.timescroll.pack(side='bottom', fill='x')
@@ -106,16 +108,17 @@ class App():
 
 
     def on_drag_start(self, event):
-        event.widget.drag_data = {'x': event.x, 'y': event.y}
+        event.widget.drag_data = {'x': event.x + self.canvas_Tline.xview()[0]*CANVAS_WIDTH}
+        self.canvas_Tline.scan_mark(event.x, 0)
 
 
     def on_drag_motion(self, event):
-        x, y = event.x - event.widget.drag_data['x'], event.y - event.widget.drag_data['y'] 
+        x = event.x + self.canvas_Tline.xview()[0]*CANVAS_WIDTH - event.widget.drag_data['x']
         tag = event.widget.gettags(tk.CURRENT)[self.glob_move_mode_all]
         self.canvas_Tline.move(tag, x, 0)
         #event.widget.move(tk.CURRENT, x, 0)
-        event.widget.drag_data = {'x': event.x, 'y': event.y}
-
+        event.widget.drag_data = {'x': event.x + self.canvas_Tline.xview()[0]*CANVAS_WIDTH}
+        self.canvas_Tline.scan_dragto(event.x, 0, gain=-2)
 
     def on_drag_end(self, event):
         new_x = event.x
@@ -140,7 +143,6 @@ class App():
         else: 
             self.glob_move_mode_all = 1
             self.canvas_Tline.itemconfigure(self.cursorText, text="all")
-        #self.canvas_Tline.coords(self.cursorText, event.x + CURSORTEXT_OFFX + self.canvas_Tline.xview()[0]*CANVAS_WIDTH, event.y + CURSORTEXT_OFFY)
 
 
     def on_show_mouse_menu(self, event):
@@ -153,13 +155,20 @@ class App():
 
 
     def on_mouse_motion_canvas(self, event):
-        self.canvas_Tline.coords(self.cursorText, event.x + CURSORTEXT_OFFX + self.canvas_Tline.xview()[0]*CANVAS_WIDTH, event.y + CURSORTEXT_OFFY)
-
+        self.canvas_Tline.coords(self.cursorText, event.x + CURSORTEXT_OFFX + self.canvas_Tline.xview()[0]*CANVAS_WIDTH,
+                                 event.y + CURSORTEXT_OFFY) 
+        self.lbl_curs_pos.configure(text=hlpfnc.tstamp_to_nice_date((event.x + self.canvas_Tline.xview()[0]*CANVAS_WIDTH),
+                                                                    self.glob_tline_factor_pix,
+                                                                    self.glob_tstamp_min))
+        if event.x < 10:
+            self.canvas_Tline.xview_scroll(-1, "units")
+        elif event.x > self.canvas_Tline.winfo_width() - 10:
+            self.canvas_Tline.xview_scroll(1, "units")
 
     def on_mouse_enter_canvas(self, event):
         if self.glob_move_mode_all == 0:
             self.canvas_Tline.itemconfigure(self.cursorText, text="1")
-        elif self.glob_move_mode_all == 1:
+        elif self.glob_move_mode_all == 1: 
             self.canvas_Tline.itemconfigure(self.cursorText, text="all")
         
 
@@ -198,13 +207,25 @@ class App():
         self.canvas_Tline.delete(list_sources)         
         self.glob_timelinetable = hlpfnc.create_timeline_table(self.glob_list_pics)
         self.glob_tstamp_min, self.glob_tstamp_max = hlpfnc.calc_tline_minmax(self.glob_timelinetable)
-        self.glob_tline_start_pix, self.glob_tline_end_pix, self.glob_tline_factor_pix = hlpfnc.calc_tline_minmax_pixel(0,CANVAS_WIDTH,self.glob_tstamp_min -500, self.glob_tstamp_max + 500)
+        self.glob_tstamp_min -= 500
+        self.glob_tstamp_max += 500
+        self.glob_tline_start_pix, self.glob_tline_end_pix, self.glob_tline_factor_pix = hlpfnc.calc_tline_minmax_pixel(0,CANVAS_WIDTH,self.glob_tstamp_min, self.glob_tstamp_max)
+        self.draw_scaletick(900, 50, utcoffs_h=0)
+        self.draw_scaletick(3600, 100, utcoffs_h=0)
+        self.draw_scaletick(86400, 200, utcoffs_h=0) #days 24*3600
         for i, source in enumerate(self.glob_timelinetable):
             self.draw_pics_one_source(source, self.glob_source_colors[i])
 
     def draw_pics_one_source(self, srctable, color):
         for record in srctable:
             self.create_pic_triangle(record[1], record[0], record[3], color)
+
+    def draw_scaletick(self, interval=3600, length=100, color='#a2a5a6', utcoffs_h=0):
+        tick_t = interval - self.glob_tstamp_min % interval + utcoffs_h * 3600
+        tick = int(tick_t * self.glob_tline_factor_pix) + self.glob_tline_start_pix 
+        while tick <= self.glob_tline_end_pix:
+            line = self.canvas_Tline.create_line(tick, 0, tick, length, fill=color, tags='ticks')
+            tick = tick + interval * self.glob_tline_factor_pix
 
     def tstamp_to_pixel(self, tstamp):
         return round(self.glob_tline_start_pix + (tstamp-self.glob_tstamp_min)*self.glob_tline_factor_pix)

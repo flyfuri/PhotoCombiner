@@ -136,6 +136,12 @@ def rename_moved_files(timeline_table, workpath):
                     new_name = old_name.replace(timestamp_to_filenamedatetm(pic[1]), timestamp_to_filenamedatetm(pic[2]))
                     os.rename(os.path.join(workpath, old_name), os.path.join(workpath, new_name)) 
 
+def tstamp_to_nice_date(tstamp, factor_pix, tstamp_min):
+    n_d = timestamp_to_filenamedatetm((tstamp/factor_pix) + tstamp_min)
+    n_d = n_d[6:8] + "/" + n_d[4:6] + "/" + n_d[:4] + "  " + n_d[9:11] + ":" + n_d[11:13] + ":" + n_d[13:]
+    return n_d
+
+
 
 if __name__ == '__main__': # test
     filedt = "20230325_145622"
