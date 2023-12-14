@@ -83,6 +83,48 @@ def create_timeline_table(piclist):
 
     return table   
 
+def getpics_around_actual_tstamp(tline_table, act_new_tstamp, nr_before=2, nr_after=2):
+    pics_around = []
+    picsortlist = []
+    for source in tline_table:
+        for pic in source:
+            picsortlist.append(pic[2])
+    picsortlist.sort()
+    try:
+        index = picsortlist.index(act_new_tstamp)
+    except ValueError:
+        pics_around = None
+    else:
+        source_lengts = [len(s) for s in tline_table]
+        nrpics = sum(source_lengts)
+        if nrpics <= 0:
+           pics_around = None 
+        else:
+            ind_neg = 0 if index - nr_before >= 0 else (index - nr_before) * (-1) #check if and how far index goes negative
+            indexes = [i for i in range(index - nr_before + ind_neg, index + nr_after + ind_neg + 1)]
+            if len(indexes) > nrpics:  #limit pics if not enough in table
+                indexes = indexes[:nrpics]
+            
+            len_indexes = len(indexes)
+            for i in range(0, len_indexes):
+                indexes[i] = picsortlist[indexes[i]] #indexes now containes the timestamps
+                pics_around.append(None)
+            
+            for source in tline_table:
+                for pic in source:
+                    if pic[2] in indexes:
+                        i_indexes = indexes.index(pic[2])
+                        pics_around[i_indexes] = pic[0] + pic[4]
+                        indexes[i_indexes] = 0
+                        len_indexes -= 1
+                    if len_indexes <= 0:
+                        break    
+                if len_indexes <= 0:
+                    break             
+    finally:      
+        return pics_around
+
+
 def calc_tline_minmax(tline_table):
     min= tline_table[0][0][1]
     max = tline_table[0][0][1]
@@ -110,19 +152,22 @@ def calc_tline_minmax_pixel(canvas_start,canvas_end, tlinemin, tlinemax):
     return pix_minmaxfactor
 
 
-def get_source_index(table, source):
+def get_source_index(time_line_table, source):
     index = -1
-    for i in range(len(table)):
-        if table[i][0][3] == source:
+    for i, sourcesrow in enumerate(time_line_table):
+        if sourcesrow[0][3] == source:
             index = i
             break
     return index
 
 
-def get_picname_index(table_one_source, name):
+def get_picname_index(time_line_table, name, source=None):
     index = -1
-    for i in range(len(table_one_source)):
-        if table_one_source[i][0] == name:
+    if source is None:
+        source = str(name).split('_')[-1]
+    src_ind = get_source_index(time_line_table, source)    
+    for i in range(len(time_line_table[src_ind])):
+        if time_line_table[src_ind][i][0] == name:
             index = i
             break
     return index
@@ -136,6 +181,7 @@ def rename_moved_files(timeline_table, workpath):
                     new_name = old_name.replace(timestamp_to_filenamedatetm(pic[1]), timestamp_to_filenamedatetm(pic[2]))
                     os.rename(os.path.join(workpath, old_name), os.path.join(workpath, new_name)) 
 
+
 def tstamp_to_nice_date(tstamp, factor_pix, tstamp_min):
     n_d = timestamp_to_filenamedatetm((tstamp/factor_pix) + tstamp_min)
     n_d = n_d[6:8] + "/" + n_d[4:6] + "/" + n_d[:4] + "  " + n_d[9:11] + ":" + n_d[11:13] + ":" + n_d[13:]
@@ -146,5 +192,6 @@ def tstamp_to_nice_date(tstamp, factor_pix, tstamp_min):
 if __name__ == '__main__': # test
     filedt = "20230325_145622"
     stamp = filenamedatetm_to_timestamp(filedt)
+    print(filedt)
     print(stamp)    
     print(timestamp_to_filenamedatetm(stamp))

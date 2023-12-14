@@ -12,11 +12,13 @@ import copy
 from shutil import copy2 as shutilcopy2
 
 import helperfunctions as hlpfnc
+import pic_row_canvas as prcanvas
 
 CURSORTEXT_OFFX = 5
 CURSORTEXT_OFFY = 22
 CANVAS_WIDTH = 4000
 CANVAS_HEIGHT = 100
+BUTTON_H = 2
 
 
 
@@ -27,7 +29,7 @@ class App():
         self.glob_list_sourcedir = [] # global list of source directories (subfolders) in workpath folder
         self.glob_list_pics = [] # global list of files workpath folder (without subfolder)
         #self.glob_list_sources = [] # global list of sources (cameras) for timeline
-        self.glob_timelinetable =[] # table used to draw timeline
+        self.glob_timelinetable = [] # table used to draw timeline
         self.glob_tstamp_min = 0
         self.glob_tstamp_max = 0
         self.glob_tline_start_pix = 0
@@ -42,7 +44,7 @@ class App():
        # graphical elements
         self.rootW = None
         self.frame1 = None
-        self.frame2 = None
+        self.frame3 = None
         self.canvas_Tline = None
         self.timescroll = None
         self.cursorText = None
@@ -61,30 +63,38 @@ class App():
 
         # frame 1 working path and buttons
         self.frame1 = Frame(self.rootW)
-        self.frame1.pack()
-        lbl_workpath = Label(self.frame1, text="working path(folder):")
+        self.frame1.pack(side=tk.TOP, fill=tk.X, pady=(0, 0))
+        lbl_workpath = Label(self.frame1, height=BUTTON_H, text="working path(folder):")
         self.var_workpathvalue = tk.StringVar()
         lbl_workpathvalue = Label(self.frame1, textvariable=self.var_workpathvalue)
-        self.btn_workpath = tk.Button(self.frame1, text="...",command=self.on_click_btn_workpath)
-        lbl_workpath.pack(side='left' )
-        lbl_workpathvalue.pack(side='left')
-        self.btn_workpath.pack(side='left')
-        self.btn_merge = tk.Button(self.frame1, text="merge from sources",command=self.on_click_btn_merge, state=tk.DISABLED)
-        self.btn_merge.pack(side='left')
-        self.btn_rename = tk.Button(self.frame1, text="rename moved pics",command=self.on_click_btn_rename, state=tk.DISABLED)
-        self.btn_rename.pack(side='left')
-
-        # frame 2 Canvas timeline
+        self.btn_workpath = tk.Button(self.frame1, height=BUTTON_H, width=3, text="...",command=self.on_click_btn_workpath)
+        lbl_workpath.pack(side=tk.LEFT, padx=(5,0))
+        lbl_workpathvalue.pack(side=tk.LEFT, padx=(5,0))
+        self.btn_workpath.pack(side=tk.LEFT, padx=5)
+        self.btn_merge = tk.Button(self.frame1, height=BUTTON_H, text="merge from sources",command=self.on_click_btn_merge, state=tk.DISABLED)
+        self.btn_merge.pack(side=tk.LEFT)
+        self.btn_rename = tk.Button(self.frame1, height=BUTTON_H, text="rename moved pics",command=self.on_click_btn_rename, state=tk.DISABLED)
+        self.btn_rename.pack(side=tk.LEFT)
+        
+        # frame 2 Canvas picture row
         self.frame2 = Frame(self.rootW)
-        self.frame2.pack(side='bottom', expand=True, fill='x')
-        self.lbl_curs_pos = Label(self.frame2, text = "0")
-        self.lbl_curs_pos.pack(side='bottom')
-        self.canvas_Tline = tk.Canvas(self.frame2, bg='white', scrollregion=(0,0,CANVAS_WIDTH, CANVAS_HEIGHT))
-        self.timescroll = tk.Scrollbar(self.frame2, orient='horizontal', command=self.canvas_Tline.xview)
-        self.timescroll.pack(side='bottom', fill='x')
-        self.canvas_Tline.pack(side='bottom', expand=False, fill='x')
+        self.frame2.pack(side=tk.TOP, expand=True, fill=tk.X , pady=(0, 0))
+        self.canvas_picrow = prcanvas.PicRowCanvas(self.frame2, bg='white')
+        self.canvas_picrow.pack(side=tk.BOTTOM, expand=False, fill=tk.X)
+
+        # frame 3 Canvas timeline
+        self.frame3 = Frame(self.rootW)
+        self.frame3.pack(side=tk.TOP, expand=True, fill=tk.X, pady=(0, 0))
+        self.lbl_curs_pos = Label(self.frame3, text = "0")
+        self.lbl_curs_pos.pack(side=tk.BOTTOM)
+        self.canvas_Tline = tk.Canvas(self.frame3, bg='white', scrollregion=(0,0,CANVAS_WIDTH, CANVAS_HEIGHT))
+        self.timescroll = tk.Scrollbar(self.frame3, orient='horizontal', command=self.canvas_Tline.xview)
+        self.timescroll.pack(side=tk.BOTTOM, fill=tk.X)
+        self.canvas_Tline.pack(side=tk.BOTTOM, expand=False, fill=tk.X)
         self.canvas_Tline.configure(xscrollcommand=self.timescroll.set)
         self.cursorText = self.canvas_Tline.create_text(1, 1, fill='black', text='')
+
+         
     
     ### events
 
@@ -95,7 +105,6 @@ class App():
         if len(self.glob_list_pics) > 0:
                 self.create_timeline()
 
-    
     def on_click_btn_merge(self):
         if self.glob_workpath is not None:
             self.merge_pics_from_sourcefolders(self.glob_workpath)
@@ -109,8 +118,12 @@ class App():
 
     def on_drag_start(self, event):
         event.widget.drag_data = {'x': event.x + self.canvas_Tline.xview()[0]*CANVAS_WIDTH}
-        self.canvas_Tline.scan_mark(event.x, 0)
-
+        self.canvas_Tline.scan_mark(event.x, 0)  
+        #discription, source = event.widget.gettags(tk.CURRENT)[:2]
+        #picfilename = discription + self.glob_timelinetable[hlpfnc.get_source_index(self.glob_timelinetable,
+        #                                                                             source)][hlpfnc.get_picname_index(self.glob_timelinetable,
+        #                                                                                                               discription)][4]
+        #self.canvas_picrow.add_pic_to_row(os.path.join(self.glob_workpath, picfilename))
 
     def on_drag_motion(self, event):
         x = event.x + self.canvas_Tline.xview()[0]*CANVAS_WIDTH - event.widget.drag_data['x']
@@ -120,21 +133,28 @@ class App():
         event.widget.drag_data = {'x': event.x + self.canvas_Tline.xview()[0]*CANVAS_WIDTH}
         self.canvas_Tline.scan_dragto(event.x, 0, gain=-2)
 
-    def on_drag_end(self, event):
+        #update new_timestamps
         new_x = event.x
-        pic_name = event.widget.gettags(tk.CURRENT)[0]
-        pic_source = event.widget.gettags(tk.CURRENT)[1]
-        source_index=hlpfnc.get_source_index(self.glob_timelinetable, pic_source)
+        pic_name, pic_source = event.widget.gettags(tk.CURRENT)[:2]
+        source_index = hlpfnc.get_source_index(self.glob_timelinetable, pic_source)
         if source_index > -1:
-            pic_index = hlpfnc.get_picname_index(self.glob_timelinetable[source_index], pic_name)
+            pic_index = hlpfnc.get_picname_index(self.glob_timelinetable, pic_name)
             if pic_index > -1:
+                tstamp_at_cursur = self.pixel_to_tstamp(new_x)
                 if self.glob_move_mode_all == 0:
-                  self.glob_timelinetable[source_index][pic_index][2] = self.pixel_to_tstamp(new_x)
+                  self.glob_timelinetable[source_index][pic_index][2] = tstamp_at_cursur
                 elif self.glob_move_mode_all == 1:
                     delta_x = self.pixel_to_tstamp(new_x) - self.glob_timelinetable[source_index][pic_index][2]
                     for i in range(len(self.glob_timelinetable[source_index])):
                         self.glob_timelinetable[source_index][i][2] = self.glob_timelinetable[source_index][i][1] + delta_x
-                self.btn_rename.configure(state=tk.NORMAL)
+
+                pics_to_show = hlpfnc.getpics_around_actual_tstamp(self.glob_timelinetable, tstamp_at_cursur)
+                self.canvas_picrow.set_all_pics([os.path.join(self.glob_workpath, pic) for pic in pics_to_show])
+
+
+    def on_drag_end(self, event):
+        self.btn_rename.configure(state=tk.NORMAL)
+
 
     def on_move_mode_change(self, event, mode):
         if mode == 0:
@@ -164,6 +184,7 @@ class App():
             self.canvas_Tline.xview_scroll(-1, "units")
         elif event.x > self.canvas_Tline.winfo_width() - 10:
             self.canvas_Tline.xview_scroll(1, "units")
+
 
     def on_mouse_enter_canvas(self, event):
         if self.glob_move_mode_all == 0:
@@ -254,6 +275,7 @@ class App():
             elif answer == None:
                 destpath = None
         return destpath
+
 
     def merge_pics_from_sourcefolders(self, workpath):
         item_list = os.listdir(workpath)
