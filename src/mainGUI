@@ -17,7 +17,7 @@ import pic_row_canvas as prcanvas
 CURSORTEXT_OFFX = 5
 CURSORTEXT_OFFY = 22
 CANVAS_WIDTH = 4000
-CANVAS_HEIGHT = 100
+CANVAS_HEIGHT = 400
 BUTTON_H = 2
 
 
@@ -63,31 +63,31 @@ class App():
 
         # frame 1 working path and buttons
         self.frame1 = Frame(self.rootW)
-        self.frame1.pack(side=tk.TOP, fill=tk.X, pady=(0, 0))
+        self.frame1.pack(side=tk.TOP, fill=tk.X, expand=False, pady=(0, 0))
         lbl_workpath = Label(self.frame1, height=BUTTON_H, text="working path(folder):")
         self.var_workpathvalue = tk.StringVar()
         lbl_workpathvalue = Label(self.frame1, textvariable=self.var_workpathvalue)
         self.btn_workpath = tk.Button(self.frame1, height=BUTTON_H, width=3, text="...",command=self.on_click_btn_workpath)
-        lbl_workpath.pack(side=tk.LEFT, padx=(5,0))
+        lbl_workpath.pack(side=tk.LEFT, padx=(5,0), pady=(2,2))
         lbl_workpathvalue.pack(side=tk.LEFT, padx=(5,0))
         self.btn_workpath.pack(side=tk.LEFT, padx=5)
         self.btn_merge = tk.Button(self.frame1, height=BUTTON_H, text="merge from sources",command=self.on_click_btn_merge, state=tk.DISABLED)
-        self.btn_merge.pack(side=tk.LEFT)
+        self.btn_merge.pack(side=tk.LEFT, pady=(2,2))
         self.btn_rename = tk.Button(self.frame1, height=BUTTON_H, text="rename moved pics",command=self.on_click_btn_rename, state=tk.DISABLED)
-        self.btn_rename.pack(side=tk.LEFT)
+        self.btn_rename.pack(side=tk.LEFT, pady=(2,2))
         
         # frame 2 Canvas picture row
         self.frame2 = Frame(self.rootW)
-        self.frame2.pack(side=tk.TOP, expand=True, fill=tk.X , pady=(0, 0))
+        self.frame2.pack(side=tk.TOP, expand=0, fill=tk.X , pady=(0, 0))
         self.canvas_picrow = prcanvas.PicRowCanvas(self.frame2, bg='white')
         self.canvas_picrow.pack(side=tk.BOTTOM, expand=False, fill=tk.X)
 
         # frame 3 Canvas timeline
         self.frame3 = Frame(self.rootW)
-        self.frame3.pack(side=tk.TOP, expand=True, fill=tk.X, pady=(0, 0))
+        self.frame3.pack(side=tk.TOP, expand=0, fill=tk.X, pady=(0, 0))
         self.lbl_curs_pos = Label(self.frame3, text = "0")
         self.lbl_curs_pos.pack(side=tk.BOTTOM)
-        self.canvas_Tline = tk.Canvas(self.frame3, bg='white', scrollregion=(0,0,CANVAS_WIDTH, CANVAS_HEIGHT))
+        self.canvas_Tline = tk.Canvas(self.frame3, bg='white', height=CANVAS_HEIGHT, scrollregion=(0,0,CANVAS_WIDTH, CANVAS_HEIGHT))
         self.timescroll = tk.Scrollbar(self.frame3, orient='horizontal', command=self.canvas_Tline.xview)
         self.timescroll.pack(side=tk.BOTTOM, fill=tk.X)
         self.canvas_Tline.pack(side=tk.BOTTOM, expand=False, fill=tk.X)
@@ -203,7 +203,7 @@ class App():
         act_tags = (description, source)
         triangle = self.canvas_Tline.create_polygon(x, y, x-5, y-10, x+5, y-10, fill=color, tags=act_tags)
         line = self.canvas_Tline.create_line(x, y, x, y+40, fill=color, tags=act_tags)
-        text = self.canvas_Tline.create_text(x, y + len(description)*4 + 10, angle=90, fill=color, text=description, tags=act_tags)
+        text = self.canvas_Tline.create_text(x, y + 60, angle=90, anchor=tk.E, fill=color, text=description, tags=act_tags)
         self.canvas_Tline.bind('<ButtonPress-3>', self.on_show_mouse_menu)
         self.canvas_Tline.tag_bind(source, '<ButtonPress-1>', self.on_drag_start)
         self.canvas_Tline.tag_bind(source, '<B1-Motion>', self.on_drag_motion)
@@ -231,9 +231,9 @@ class App():
         self.glob_tstamp_min -= 500
         self.glob_tstamp_max += 500
         self.glob_tline_start_pix, self.glob_tline_end_pix, self.glob_tline_factor_pix = hlpfnc.calc_tline_minmax_pixel(0,CANVAS_WIDTH,self.glob_tstamp_min, self.glob_tstamp_max)
-        self.draw_scaletick(900, 50, utcoffs_h=0)
-        self.draw_scaletick(3600, 100, utcoffs_h=0)
-        self.draw_scaletick(86400, 200, utcoffs_h=0) #days 24*3600
+        self.draw_scaletick(900, length=50, width=1, utcoffs_h=0)
+        self.draw_scaletick(3600, length=100, width=2, utcoffs_h=0)
+        self.draw_scaletick(86400, length=200, width=3, utcoffs_h=0) #days 24*3600
         for i, source in enumerate(self.glob_timelinetable):
             self.draw_pics_one_source(source, self.glob_source_colors[i])
 
@@ -241,11 +241,11 @@ class App():
         for record in srctable:
             self.create_pic_triangle(record[1], record[0], record[3], color)
 
-    def draw_scaletick(self, interval=3600, length=100, color='#a2a5a6', utcoffs_h=0):
+    def draw_scaletick(self, interval=3600, length=100, width=1, color='#a2a5a6', utcoffs_h=0):
         tick_t = interval - self.glob_tstamp_min % interval + utcoffs_h * 3600
         tick = int(tick_t * self.glob_tline_factor_pix) + self.glob_tline_start_pix 
         while tick <= self.glob_tline_end_pix:
-            line = self.canvas_Tline.create_line(tick, 0, tick, length, fill=color, tags='ticks')
+            line = self.canvas_Tline.create_line(tick, 0, tick, length, fill=color, tags='ticks', width=width)
             tick = tick + interval * self.glob_tline_factor_pix
 
     def tstamp_to_pixel(self, tstamp):
