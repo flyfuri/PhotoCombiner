@@ -151,10 +151,11 @@ class App():
                 elif self.glob_move_mode_all == 1:
                     delta_x = self.pixel_to_tstamp(new_x) - self.glob_timelinetable[source_index][pic_index][2]
                     for i in range(len(self.glob_timelinetable[source_index])):
-                        new_tstamp = self.glob_timelinetable[source_index][i][1] + delta_x
+                        new_tstamp = self.glob_timelinetable[source_index][i][2] + delta_x
                         self.glob_timelinetable[source_index][i][2] = new_tstamp
+                        tmp_pic_name = self.glob_timelinetable[source_index][i][0]
                         self.canvas_Tline.itemconfig(tagOrId='itm_txt' + self.glob_timelinetable[source_index][i][0],
-                                                     text='(' + hlpfnc.timestamp_to_filenamedatetm(new_tstamp) + ')  ' + pic_name) # update new date in time-line item
+                                                     text='(' + hlpfnc.timestamp_to_filenamedatetm(new_tstamp) + ')  ' + tmp_pic_name) # update new date in time-line item
 
                 self.update_pic_row(tstamp_center_pic=tstamp_at_cursor, i_source=source_index, i_pic=pic_index)
 
