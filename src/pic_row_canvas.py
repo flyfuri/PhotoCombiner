@@ -19,8 +19,7 @@ class PicRowCanvas(tk.Canvas):
             width, height = img.size
             new_height = THUMBNAIL_H
             new_width = int((width / height) * new_height)
-            #tmbsize = tuple(new_height, new_width)#new_height if new_height > new_width else new_width
-            img.thumbnail((new_width, new_width))  # Resize the image to a thumbnail
+            img.thumbnail((new_width, new_height))  # Resize the image to a thumbnail
 
             photo = ImageTk.PhotoImage(img)
             self.image_paths.append(image_path)
@@ -54,11 +53,10 @@ class PicRowCanvas(tk.Canvas):
     def set_all_pics(self, list_pic_paths):
         i_delete = 0
         for i, picpath in enumerate(list_pic_paths):
-            if picpath in self.image_paths:
-                tmppcp = self.image_paths.pop(self.image_paths.index(picpath))
-                self.image_paths.insert(i, tmppcp)
-            else:
+            if picpath not in self.image_paths:
                 self.add_pic_to_row(picpath)
+            tmppcp = self.image_paths.pop(self.image_paths.index(picpath))
+            self.image_paths.insert(i, tmppcp)
             i_delete = i + 1
         to_delete = [self.image_paths[i] for i in range(i_delete, len(self.image_paths))]
         for td in to_delete:

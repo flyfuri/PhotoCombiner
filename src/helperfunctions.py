@@ -2,6 +2,7 @@ import os
 import re
 import datetime
 
+
 def is_pic(filename):  # checks if file is a picture according to its extension
     pic_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp']  
     _, extension = os.path.splitext(filename)
@@ -98,12 +99,15 @@ def getpics_around_actual_tstamp(tline_table, act_new_tstamp, nr_before=2, nr_af
         source_lengts = [len(s) for s in tline_table]
         nrpics = sum(source_lengts)
         if nrpics <= 0:
-           pics_around = None 
+           pics_around = []
         else:
-            ind_neg = 0 if index - nr_before >= 0 else (index - nr_before) * (-1) #check if and how far index goes negative
-            indexes = [i for i in range(index - nr_before + ind_neg, index + nr_after + ind_neg + 1)]
-            if len(indexes) > nrpics:  #limit pics if not enough in table
-                indexes = indexes[:nrpics]
+            #ind_neg = 0 if index - nr_before >= 0 else (index - nr_before) * (-1) #check if and how far index goes negative
+            #indexes = [i for i in range(index - nr_before + ind_neg, index + nr_after + ind_neg + 1)]
+            #if len(indexes) > nrpics:  #limit pics if not enough in table
+            #indexes = indexes[:nrpics]
+            ind_neg = 0 if index - nr_before >= 0 else (nr_before - index) #check if and how far indexes go negative
+            ind_over = 0 if index + nr_after <= nrpics else nrpics -(index + nr_after) #check if and how far exceeding nbr of pics
+            indexes = [i for i in range(index - nr_before + ind_neg, index + nr_after + ind_over + 1)]
             
             len_indexes = len(indexes)
             for i in range(0, len_indexes):
@@ -187,7 +191,11 @@ def tstamp_to_nice_date(tstamp, factor_pix, tstamp_min):
     n_d = n_d[6:8] + "/" + n_d[4:6] + "/" + n_d[:4] + "  " + n_d[9:11] + ":" + n_d[11:13] + ":" + n_d[13:]
     return n_d
 
-
+def calc_text_timeline_item(record):
+    if record[1] != record[2]:
+        return record[0] + "(" + timestamp_to_filenamedatetm(record[2]) + ")"
+    else:
+        return record[0]
 
 if __name__ == '__main__': # test
     filedt = "20230325_145622"
