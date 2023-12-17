@@ -39,18 +39,49 @@ class PicRowCanvas(tk.Canvas):
             self.delete(text_item)
 
 
-    def update_positions(self):
-        position = 0
-        for image_path in self.image_paths:
-            items = self.labels[image_path]
-            self.coords(items[0], position, 0)
-            self.coords(items[1], position, THUMBNAIL_H + 1)
+    def update_positions(self, path_centerpic=None):
+        i_center = 0
+        if path_centerpic in self.image_paths:
+            i_center = self.image_paths.index(path_centerpic)
+        else:
+            i_center = int(len(self.image_paths) / 2)
+
+        centerpos  = int(self.winfo_width()/2)
+        position = centerpos
+
+        for i in range(i_center, -1, -1):
+            items = self.labels[self.image_paths[i]]
             image_width = self.bbox(items[0])[2] - self.bbox(items[0])[0]
             text_width = self.bbox(items[1])[2] - self.bbox(items[1])[0]
-            position += (image_width if image_width > text_width else text_width) + 10
+            if i == i_center:
+                position = centerpos - (image_width if image_width > text_width else text_width)/2 
+            else:
+                position -= (image_width if image_width > text_width else text_width) + 10
+            self.coords(items[0], position, 0)
+            self.coords(items[1], position, THUMBNAIL_H + 1)
+
+        for i in range(i_center, len(self.image_paths), 1):
+            items = self.labels[self.image_paths[i]]
+            image_width = self.bbox(items[0])[2] - self.bbox(items[0])[0]
+            text_width = self.bbox(items[1])[2] - self.bbox(items[1])[0]
+            if i == i_center:
+                position = centerpos + (image_width if image_width > text_width else text_width)/2 + 10 
+            else:               
+                self.coords(items[0], position, 0)
+                self.coords(items[1], position, THUMBNAIL_H + 1)
+                position += (image_width if image_width > text_width else text_width) + 10
+        
+            #position = 0
+            #for image_path in self.image_paths:
+            #    items = self.labels[image_path]
+            #    self.coords(items[0], position, 0)
+            #    self.coords(items[1], position, THUMBNAIL_H + 1)
+            #    image_width = self.bbox(items[0])[2] - self.bbox(items[0])[0]
+            #    text_width = self.bbox(items[1])[2] - self.bbox(items[1])[0]
+            #    position += (image_width if image_width > text_width else text_width) + 10
 
 
-    def set_all_pics(self, list_pic_paths):
+    def set_all_pics(self, list_pic_paths, path_centerpic=None):
         i_delete = 0
         for i, picpath in enumerate(list_pic_paths):
             if picpath not in self.image_paths:
@@ -61,7 +92,7 @@ class PicRowCanvas(tk.Canvas):
         to_delete = [self.image_paths[i] for i in range(i_delete, len(self.image_paths))]
         for td in to_delete:
             self.delete_pic_from_row(td)               
-        self.update_positions()
+        self.update_positions(path_centerpic=path_centerpic)
 
 
 
@@ -83,7 +114,10 @@ if __name__ == '__main__': # test
         nbr = 5 if 5 < len(list_pics) -1 else len(list_pics) -1
         if nbr > 1:
             pics_show = list_pics[pic_i[0]:pic_i[0]+nbr]
-            image_row.set_all_pics([os.path.join(workpath, pic) for pic in pics_show])
+            index_center = int(nbr/2)
+            index_center = index_center if (index_center) % 2 == 0 else index_center + 1
+            image_row.set_all_pics(list_pic_paths=[os.path.join(workpath, pic) for pic in pics_show],
+                                   path_centerpic=os.path.join(workpath,pics_show[index_center]))
             pic_i[0] += 1
             if pic_i[0] < len(list_pics)-nbr:
                 timer = root.after(1000, rotate_testpics)

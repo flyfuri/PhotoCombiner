@@ -106,7 +106,7 @@ def getpics_around_actual_tstamp(tline_table, act_new_tstamp, nr_before=2, nr_af
             #if len(indexes) > nrpics:  #limit pics if not enough in table
             #indexes = indexes[:nrpics]
             ind_neg = 0 if index - nr_before >= 0 else (nr_before - index) #check if and how far indexes go negative
-            ind_over = 0 if index + nr_after <= nrpics else nrpics -(index + nr_after) #check if and how far exceeding nbr of pics
+            ind_over = 0 if index + nr_after < nrpics else nrpics -1 -(index + nr_after) #check if and how far exceeding nbr of pics
             indexes = [i for i in range(index - nr_before + ind_neg, index + nr_after + ind_over + 1)]
             
             len_indexes = len(indexes)

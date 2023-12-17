@@ -41,6 +41,7 @@ class App():
         self.glob_draging_tlitem = False #mouse is draging an item on the timeline
         self.glob_move_mode_all = 0 # which pics to move on the timeline: 0=just the one, 1=all with same source
         self.glob_pics_to_show = [] #pics to show in picture row
+        self.glob_center_pic = None #pic to show on center
 
        # graphical elements
         self.rootW = None
@@ -155,8 +156,7 @@ class App():
                         self.canvas_Tline.itemconfig(tagOrId='itm_txt' + self.glob_timelinetable[source_index][i][0],
                                                      text='(' + hlpfnc.timestamp_to_filenamedatetm(new_tstamp) + ')  ' + pic_name) # update new date in time-line item
 
-                self.glob_pics_to_show = hlpfnc.getpics_around_actual_tstamp(self.glob_timelinetable, tstamp_at_cursor)
-                self.canvas_picrow.set_all_pics([os.path.join(self.glob_workpath, pic) for pic in self.glob_pics_to_show])
+                self.update_pic_row(tstamp_center_pic=tstamp_at_cursor, i_source=source_index, i_pic=pic_index)
 
 
     def on_tlitem_mouse_up(self, event):
@@ -172,8 +172,7 @@ class App():
                 pic_index = hlpfnc.get_picname_index(self.glob_timelinetable, pic_name)
                 if pic_index > -1:
                     tstamp_at_cursor = self.glob_timelinetable[source_index][pic_index][2]
-                    pics_to_show = hlpfnc.getpics_around_actual_tstamp(self.glob_timelinetable, tstamp_at_cursor)
-                    self.canvas_picrow.set_all_pics([os.path.join(self.glob_workpath, pic) for pic in pics_to_show])
+                    self.update_pic_row(tstamp_center_pic=tstamp_at_cursor, i_source=source_index, i_pic=pic_index)
 
 
     def on_move_mode_change(self, event, mode):
@@ -216,6 +215,11 @@ class App():
     def on_mouse_leave_canvas(self, event):
         self.canvas_Tline.itemconfigure(self.cursorText, text='')  #trick to make label disapear when cursor not over canvas 
 
+    def update_pic_row(self, tstamp_center_pic, i_source, i_pic):
+        self.glob_center_pic = self.glob_timelinetable[i_source][i_pic][0] + self.glob_timelinetable[i_source][i_pic][4]
+        self.glob_pics_to_show = hlpfnc.getpics_around_actual_tstamp(self.glob_timelinetable, tstamp_center_pic, 3, 3)
+        self.canvas_picrow.set_all_pics(list_pic_paths=[os.path.join(self.glob_workpath, pic) for pic in self.glob_pics_to_show],
+                                                path_centerpic=os.path.join(self.glob_workpath,self.glob_center_pic))
 
     def create_pic_triangle(self, tstamp , description, source, color='#a2a5a6', text="des",):
         x = self.tstamp_to_pixel(tstamp)
