@@ -23,7 +23,7 @@ TLINE_ITEM_COLORS = (
             'red', 'green', 'blue', 'yellow', 'magenta', 'cyan', 'orange', 'purple',
             'dark green', 'navy', 'maroon', 'olive', 'teal', 'brown', 'slate gray'
         )
-
+BG_COLOR = 'lightgray'
 
 class App():
 
@@ -64,7 +64,7 @@ class App():
         self.rootW.state('zoomed')
 
         # frame 1 working path and buttons
-        self.frame1 = Frame(self.rootW)
+        self.frame1 = Frame(self.rootW, bg=BG_COLOR)
         self.frame1.pack(side=tk.TOP, fill=tk.X, expand=False, pady=(0, 0))
         lbl_workpath = Label(self.frame1, height=BUTTON_H, text="working path(folder):")
         self.var_workpathvalue = tk.StringVar()
@@ -79,13 +79,13 @@ class App():
         self.btn_rename.pack(side=tk.LEFT, pady=(2,2))
         
         # frame 2 Canvas picture row
-        self.frame2 = Frame(self.rootW)
+        self.frame2 = Frame(self.rootW, bg=BG_COLOR)
         self.frame2.pack(side=tk.TOP, expand=0, fill=tk.X , pady=(0, 0))
-        self.canvas_picrow = prcanvas.PicRowCanvas(self.frame2, bg='white')
+        self.canvas_picrow = prcanvas.PicRowCanvas(self.frame2, bg=BG_COLOR)
         self.canvas_picrow.pack(side=tk.BOTTOM, expand=False, fill=tk.X)
 
         # frame 3 Canvas timeline
-        self.frame3 = Frame(self.rootW)
+        self.frame3 = Frame(self.rootW, bg=BG_COLOR)
         self.frame3.pack(side=tk.TOP, expand=0, fill=tk.X, pady=(0, 0))
         self.lbl_curs_pos = Label(self.frame3, text = "0")
         self.lbl_curs_pos.pack(side=tk.BOTTOM)
@@ -182,7 +182,7 @@ class App():
             self.canvas_Tline.itemconfigure(self.cursorText, text="1")
         else: 
             self.glob_move_mode_all = 1
-            self.canvas_Tline.itemconfigure(self.cursorText, text="all")
+            self.canvas_Tline.itemconfigure(self.cursorText, text="source")
 
 
     def on_tlcanvas_right_click(self, event):
@@ -216,11 +216,13 @@ class App():
     def on_mouse_leave_canvas(self, event):
         self.canvas_Tline.itemconfigure(self.cursorText, text='')  #trick to make label disapear when cursor not over canvas 
 
+
     def update_pic_row(self, tstamp_center_pic, i_source, i_pic):
         self.glob_center_pic = self.glob_timelinetable[i_source][i_pic][0] + self.glob_timelinetable[i_source][i_pic][4]
         self.glob_pics_to_show = hlpfnc.getpics_around_actual_tstamp(self.glob_timelinetable, tstamp_center_pic, 3, 3)
         self.canvas_picrow.set_all_pics(list_pic_paths=[os.path.join(self.glob_workpath, pic) for pic in self.glob_pics_to_show],
                                                 path_centerpic=os.path.join(self.glob_workpath,self.glob_center_pic))
+
 
     def create_pic_triangle(self, tstamp , description, source, color='#a2a5a6', text="des",):
         x = self.tstamp_to_pixel(tstamp)
@@ -242,6 +244,7 @@ class App():
         self.canvas_Tline.bind("<Leave>", self.on_mouse_leave_canvas)
         self.canvas_Tline.bind("<Motion>", self.on_mouse_motion_canvas)
          
+
     ### functions
 
     def set_workpath(self):
@@ -253,12 +256,14 @@ class App():
             self.glob_list_pics = list(filter(lambda x: hlpfnc.is_pic(x) or hlpfnc.is_video(x), item_list))
             self.var_workpathvalue.set(self.glob_workpath)
 
+
     def draw_scaletick(self, interval=3600, length=100, width=1, color='#a2a5a6', utcoffs_h=0):
         tick_t = interval - self.glob_tstamp_min % interval + utcoffs_h * 3600
         tick = int(tick_t * self.glob_tline_factor_pix) + self.glob_tline_start_pix 
         while tick <= self.glob_tline_end_pix:
             line = self.canvas_Tline.create_line(tick, 0, tick, length, fill=color, tags='ticks', width=width)
             tick = tick + interval * self.glob_tline_factor_pix
+
 
     def draw_pics_one_source(self, srctable, color):
         for record in srctable:
