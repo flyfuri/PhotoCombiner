@@ -101,21 +101,29 @@ class App():
     ### events
 
     def on_click_btn_workpath(self):
-        self.set_workpath()
+        self.set_workpath_read_files()
         if len(self.glob_list_sourcedir) > 0:
             self.btn_merge.configure(state=tk.NORMAL)
         if len(self.glob_list_pics) > 0:
                 self.create_timeline()
 
     def on_click_btn_merge(self):
+        self.rootW.config(cursor='watch')
         if self.glob_workpath is not None:
             self.merge_pics_from_sourcefolders(self.glob_workpath)
         if len(self.glob_list_pics) > 0:
                 self.create_timeline()
+        self.rootW.config(cursor='')
 
     def on_click_btn_rename(self):
+        self.rootW.config(cursor='watch')
         if self.glob_workpath is not None and len(self.glob_list_pics) > 0:
             hlpfnc.rename_moved_files(self.glob_timelinetable, self.glob_workpath)
+
+        self.set_workpath_read_files(path=self.glob_workpath)
+        if len(self.glob_list_pics) > 0:
+                self.create_timeline()
+        self.rootW.config(cursor='')
 
 
     def on_tlitem_mouse_down(self, event):
@@ -224,7 +232,7 @@ class App():
                                                 path_centerpic=os.path.join(self.glob_workpath,self.glob_center_pic))
 
 
-    def create_pic_triangle(self, tstamp , description, source, color='#a2a5a6', text="des",):
+    def create_tlitem_for_pic(self, tstamp , description, source, color='#a2a5a6', text="des",):
         x = self.tstamp_to_pixel(tstamp)
         y = 15  # Adjust the y-position if needed
         act_tags = [description, source, ('itm_triangle' + description)]
@@ -247,9 +255,13 @@ class App():
 
     ### functions
 
-    def set_workpath(self):
+    def set_workpath_read_files(self, path=None):
         # Open a file dialog for opening a file
-        self.glob_workpath = filedialog.askdirectory()
+        if path is None:
+            self.glob_workpath = filedialog.askdirectory()
+        elif os.path.isdir(path):
+            self.glob_workpath=path
+
         if self.glob_workpath is not None:
             item_list = os.listdir(self.glob_workpath)
             self.glob_list_sourcedir = list(filter(lambda x: os.path.isdir(os.path.join(self.glob_workpath, x)), item_list))
@@ -265,14 +277,14 @@ class App():
             tick = tick + interval * self.glob_tline_factor_pix
 
 
-    def draw_pics_one_source(self, srctable, color):
+    def draw_tlitems_for_source(self, srctable, color):
         for record in srctable:
-            self.create_pic_triangle(record[1], hlpfnc.calc_text_timeline_item(record), record[3], color)
+            self.create_tlitem_for_pic(record[1], hlpfnc.calc_text_timeline_item(record), record[3], color)
 
 
     def create_timeline(self): 
-        list_sources = [x[0][3] for x in self.glob_timelinetable]
-        self.canvas_Tline.delete(list_sources)         
+        #list_sources = [x[0][3] for x in self.glob_timelinetable]
+        self.canvas_Tline.delete('all')         
         self.glob_timelinetable = hlpfnc.create_timeline_table(self.glob_list_pics)
         self.glob_tstamp_min, self.glob_tstamp_max = hlpfnc.calc_tline_minmax(self.glob_timelinetable)
         self.glob_tstamp_min -= 3600
@@ -282,7 +294,7 @@ class App():
         self.draw_scaletick(3600, length=100, width=2, utcoffs_h=0)
         self.draw_scaletick(86400, length=200, width=3, utcoffs_h=0) #days 24*3600
         for i, source in enumerate(self.glob_timelinetable):
-            self.draw_pics_one_source(source, TLINE_ITEM_COLORS[i % len(TLINE_ITEM_COLORS)])
+            self.draw_tlitems_for_source(source, TLINE_ITEM_COLORS[i % len(TLINE_ITEM_COLORS)])
 
 
     def tstamp_to_pixel(self, tstamp):

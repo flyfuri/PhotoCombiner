@@ -1,6 +1,7 @@
 import os
 import re
 import datetime
+import copy
 
 
 def is_pic(filename):  # checks if file is a picture according to its extension
@@ -66,20 +67,21 @@ def create_timeline_table(piclist):
             source_index = -1
             if first_entry:
                 dimension2.clear()
-                dimension2.append(record)
-                table.append(dimension2)
+                dimension2.append(record.copy())
+                table.append(copy.deepcopy(dimension2))
                 first_entry = False
             else:
                 for i in range(len(table)):
                     if table[i][0][3] == pic_source:
                         source_index = i
+                        break
                 if source_index < 0:
                     dimension2.clear()
-                    dimension2.append(record)
-                    table.append(dimension2)
+                    dimension2.append(record.copy())
+                    table.append(copy.deepcopy(dimension2))
                 else:
-                    tablerec = list(table[source_index])
-                    tablerec.append(record)
+                    tablerec = table[source_index]
+                    tablerec.append(record.copy())
                     table[source_index] = tablerec
 
     return table   
