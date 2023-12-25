@@ -1,10 +1,14 @@
 import tkinter as tk
-from PIL import Image, ImageTk
+from PIL import Image, ImageDraw, ImageTk
+import cv2
 import os
 import copy
+import time
+import helperfunctions as hlpfnc
 
 THUMBNAIL_H = 160
 THUMBN_CNR_H = 200
+VID_PREV_MS = 200
 
 class PicRowCanvas(tk.Canvas):
     
@@ -13,10 +17,53 @@ class PicRowCanvas(tk.Canvas):
         super().__init__(master, *args, **kwargs)
         self.image_paths = []  # List to store image paths
         self.photo_images = []  # List to store PhotoImage objects
-        self.labels = {}  # Dictionary to store labels
-        self.cntr_pic_bigger = None
-        self.prev_cntr_pic_small = None
-        self.prev_cntr_pic_path = None
+        self.labels = {}  # Dictionary to store labels (key = path)
+        self.vidframes = {} # Dictionary to store actual frame on video (key = path)
+        self.cntr_pic_bigger = None  #bigger picture in centre
+        self.prev_cntr_pic_small = None #save small picture to replace bigger when center pic changed
+        self.prev_cntr_pic_path = None #memorize which picture is to replace
+        self.vid_preview_path = None #picture video preview is running
+        self.vid_preview_fps = 0
+        self.vid_preview_nbr_frm = 0
+        self.vid_preview_interv_frm = 6
+        self.vid_preview_capt = None
+        self.vid_preview_image = None
+
+
+    def on_video_prev_timer(self):
+        if self.vid_preview_path is not None:
+            t_start = time.time()
+            self.vidframes[self.vid_preview_path] += self.vid_preview_interv_frm
+            if self.vidframes[self.vid_preview_path] >= self.vid_preview_nbr_frm:
+                self.vidframes[self.vid_preview_path] = 1
+            
+            items = self.labels[self.vid_preview_path]
+            
+            _, h  = self.get_item_width_height(items[0]) 
+            self.vid_preview_image = self.open_pic_file_to_photo(self.vid_preview_path, h)
+            self.itemconfigure(items[0], image=self.vid_preview_image) 
+            t_used = (time.time() - t_start) * 1000
+            t_next = VID_PREV_MS - t_used
+            t_next = t_next if t_next >= 2 else 2
+            self.after(VID_PREV_MS, self.on_video_prev_timer)
+        elif self.act_prev_capt is not None:
+            self.act_prev_capt.release()
+            self.act_prev_capt = None
+
+    def on_mouse_enter_pic(self, event):
+        path = event.widget.gettags(tk.CURRENT)[0]
+        if hlpfnc.is_video(path):
+            self.vid_preview_path = path
+            self.act_prev_capt = cv2.VideoCapture(path)
+            self.vid_preview_nbr_frm = self.act_prev_capt.get(cv2.CAP_PROP_FRAME_COUNT)
+            self.vid_preview_fps = self.act_prev_capt.get(cv2.CAP_PROP_FPS)
+            self.vid_preview_interv_frm = int(self.vid_preview_fps/(1000/VID_PREV_MS))
+
+            self.after(1, self.on_video_prev_timer)
+
+    def on_mouse_leave_pic(self, event):
+        self.vid_preview_path = None
+     
 
     def get_item_width_height(self, item):
         img_x0, img_y0, img_x1, img_y1 = self.bbox(item)
@@ -24,8 +71,39 @@ class PicRowCanvas(tk.Canvas):
         h = img_y1 - img_y0
         return (w,h)
     
+    def draw_default_image(self, width=200, height=100):
+        default_image = Image.new("RGB", (min(width,20), min(height, 20)), 'silver')
+        draw = ImageDraw.Draw(default_image)
+        draw.rounded_rectangle((5,5,width-5,height-5), fill='blue')
+        return default_image
+
     def open_pic_file_to_photo(self, image_path, tmbn_height=100):
-        img = Image.open(image_path)
+        try:
+            if hlpfnc.is_pic(os.path.basename(image_path)):
+                img = Image.open(image_path)
+            elif hlpfnc.is_video(os.path.basename(image_path)):
+                capt = cv2.VideoCapture(image_path)
+                try:
+                    framepos = self.vidframes[image_path]
+                except:
+                    vid_nb_frames = capt.get(cv2.CAP_PROP_FRAME_COUNT)
+                    framepos = int(vid_nb_frames/2)
+                    self.vidframes[image_path] = framepos
+                
+                capt.set(cv2.CAP_PROP_POS_FRAMES, framepos)
+                readOK, bgr_frame = capt.read()
+                capt.release()
+                if readOK:
+                    rgb_frame = cv2.cvtColor(bgr_frame, cv2.COLOR_BGR2RGB)           
+                    img = Image.fromarray(rgb_frame)# Convert the frame to a Pillow Image
+                else:
+                    raise Exception    
+            else: 
+                raise Exception
+        except Exception as e:        
+            #print(str(e))
+            img = self.draw_default_image(200,100)
+
         width, height = img.size
         new_height = tmbn_height
         new_width = int((width / height) * new_height)
@@ -40,9 +118,12 @@ class PicRowCanvas(tk.Canvas):
             self.photo_images.append(photo)
 
             position = len(self.labels) * 120 + 10
-            image_item = self.create_image(position, 0, anchor=tk.NW, image=photo, tags=image_path)
-            text_item = self.create_text(position, THUMBN_CNR_H + 1, text=os.path.basename(image_path), anchor=tk.NW, tags=image_path)
+            image_item = self.create_image(position, 0, anchor=tk.NW, image=photo, tags=[image_path])
+            self.tag_bind(image_path, "<Enter>", self.on_mouse_enter_pic)
+            self.tag_bind(image_path,"<Leave>", self.on_mouse_leave_pic)
+            text_item = self.create_text(position, THUMBN_CNR_H + 1, text=os.path.basename(image_path), anchor=tk.NW, tags=[image_path])
             self.labels[image_path] = (image_item, text_item)
+
 
     def delete_pic_from_row(self, image_path):
         if image_path in self.image_paths:

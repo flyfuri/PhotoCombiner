@@ -114,6 +114,7 @@ class App():
         if len(self.glob_list_pics) > 0:
                 self.create_timeline()
         self.rootW.config(cursor='')
+        
 
     def on_click_btn_rename(self):
         self.rootW.config(cursor='watch')
@@ -130,11 +131,7 @@ class App():
         self.glob_draging_tlitem = True
         event.widget.drag_data = {'x': event.x + self.canvas_Tline.xview()[0]*TLCANVAS_W}
         self.canvas_Tline.scan_mark(event.x, 0)  
-        #discription, source = event.widget.gettags(tk.CURRENT)[:2]
-        #picfilename = discription + self.glob_timelinetable[hlpfnc.get_source_index(self.glob_timelinetable,
-        #                                                                             source)][hlpfnc.get_picname_index(self.glob_timelinetable,
-        #                                                                                                               discription)][4]
-        #self.canvas_picrow.add_pic_to_row(os.path.join(self.glob_workpath, picfilename))
+        
 
     def on_tlitem_drag_motion(self, event):
         x = event.x + self.canvas_Tline.xview()[0]*TLCANVAS_W - event.widget.drag_data['x']
