@@ -45,12 +45,13 @@ class PicRowCanvas(tk.Canvas):
             t_used = (time.time() - t_start) * 1000
             t_next = VID_PREV_MS - t_used
             t_next = t_next if t_next >= 2 else 2
-            self.after(VID_PREV_MS, self.on_video_prev_timer)
+            self.after(int(t_next), self.on_video_prev_timer)
         elif self.act_prev_capt is not None:
             self.act_prev_capt.release()
             self.act_prev_capt = None
 
-    def on_mouse_enter_pic(self, event):
+
+    def on_pic_mouse_down(self, event):
         path = event.widget.gettags(tk.CURRENT)[0]
         if hlpfnc.is_video(path):
             self.vid_preview_path = path
@@ -61,7 +62,7 @@ class PicRowCanvas(tk.Canvas):
 
             self.after(1, self.on_video_prev_timer)
 
-    def on_mouse_leave_pic(self, event):
+    def on_pic_mouse_up(self, event):
         self.vid_preview_path = None
         if self.act_prev_capt is not None:
             self.act_prev_capt.release()
@@ -121,8 +122,10 @@ class PicRowCanvas(tk.Canvas):
 
             position = len(self.labels) * 120 + 10
             image_item = self.create_image(position, 0, anchor=tk.NW, image=self.photo_images[image_path], tags=[image_path])
-            self.tag_bind(image_path, "<Enter>", self.on_mouse_enter_pic)
-            self.tag_bind(image_path,"<Leave>", self.on_mouse_leave_pic)
+            #self.tag_bind(image_path, "<Enter>", self.on_mouse_enter_pic)  event did not trigger reliably
+            #self.tag_bind(image_path,"<Leave>", self.on_mouse_leave_pic)   event did not trigger reliably
+            self.tag_bind(image_path, '<ButtonPress-1>', self.on_pic_mouse_down)
+            self.tag_bind(image_path,'<ButtonRelease-1>', self.on_pic_mouse_up)
             text_item = self.create_text(position, THUMBN_CNR_H + 1, text=os.path.basename(image_path), anchor=tk.NW, tags=[image_path])
             self.labels[image_path] = (image_item, text_item)
 
