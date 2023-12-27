@@ -107,17 +107,20 @@ class App():
         if len(self.glob_list_pics) > 0:
                 self.create_timeline()
 
+    
     def on_click_btn_merge(self):
         self.rootW.config(cursor='watch')
+        self.rootW.update_idletasks()
         if self.glob_workpath is not None:
             self.merge_pics_from_sourcefolders(self.glob_workpath)
         if len(self.glob_list_pics) > 0:
                 self.create_timeline()
         self.rootW.config(cursor='')
-        
+       
 
     def on_click_btn_rename(self):
         self.rootW.config(cursor='watch')
+        self.rootW.update_idletasks()
         if self.glob_workpath is not None and len(self.glob_list_pics) > 0:
             hlpfnc.rename_moved_files(self.glob_timelinetable, self.glob_workpath)
 
