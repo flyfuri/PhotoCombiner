@@ -35,6 +35,8 @@ class PicRowCanvas(tk.Canvas):
             self.vidframes[self.vid_preview_path] += self.vid_preview_interv_frm
             if self.vidframes[self.vid_preview_path] >= self.vid_preview_nbr_frm:
                 self.vidframes[self.vid_preview_path] = 1
+            elif self.vidframes[self.vid_preview_path] <= 0:
+                self.vidframes[self.vid_preview_path] = self.vid_preview_nbr_frm - 1   
             
             items = self.labels[self.vid_preview_path]
             
@@ -51,14 +53,17 @@ class PicRowCanvas(tk.Canvas):
             self.act_prev_capt = None
 
 
-    def on_pic_mouse_down(self, event):
+    def on_pic_mouse_down(self, event, reverse=False):
         path = event.widget.gettags(tk.CURRENT)[0]
         if hlpfnc.is_video(path):
             self.vid_preview_path = path
             self.act_prev_capt = cv2.VideoCapture(path)
             self.vid_preview_nbr_frm = self.act_prev_capt.get(cv2.CAP_PROP_FRAME_COUNT)
             self.vid_preview_fps = self.act_prev_capt.get(cv2.CAP_PROP_FPS)
-            self.vid_preview_interv_frm = int(self.vid_preview_fps/(1000/VID_PREV_MS))
+            if not reverse:
+                self.vid_preview_interv_frm = int(self.vid_preview_fps/(1000/VID_PREV_MS))
+            else:
+                self.vid_preview_interv_frm = int(self.vid_preview_fps/(-1000/VID_PREV_MS))
 
             self.after(1, self.on_video_prev_timer)
 
@@ -124,8 +129,10 @@ class PicRowCanvas(tk.Canvas):
             image_item = self.create_image(position, 0, anchor=tk.NW, image=self.photo_images[image_path], tags=[image_path])
             #self.tag_bind(image_path, "<Enter>", self.on_mouse_enter_pic)  event did not trigger reliably
             #self.tag_bind(image_path,"<Leave>", self.on_mouse_leave_pic)   event did not trigger reliably
-            self.tag_bind(image_path, '<ButtonPress-1>', self.on_pic_mouse_down)
+            self.tag_bind(image_path, '<ButtonPress-1>', lambda event, reverse=False : self.on_pic_mouse_down(event, reverse))
             self.tag_bind(image_path,'<ButtonRelease-1>', self.on_pic_mouse_up)
+            self.tag_bind(image_path, '<ButtonPress-3>', lambda event, reverse=True : self.on_pic_mouse_down(event, reverse))
+            self.tag_bind(image_path,'<ButtonRelease-3>', self.on_pic_mouse_up)
             text_item = self.create_text(position, THUMBN_CNR_H + 1, text=os.path.basename(image_path), anchor=tk.NW, tags=[image_path])
             self.labels[image_path] = (image_item, text_item)
 
