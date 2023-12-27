@@ -16,11 +16,10 @@ class PicRowCanvas(tk.Canvas):
     def __init__(self, master, *args, **kwargs):
         super().__init__(master, *args, **kwargs)
         self.image_paths = []  # List to store image paths
-        self.photo_images = []  # List to store PhotoImage objects
+        self.photo_images = {}  # Dictionary to store photo images (key = path)
         self.labels = {}  # Dictionary to store labels (key = path)
         self.vidframes = {} # Dictionary to store actual frame on video (key = path)
         self.cntr_pic_bigger = None  #bigger picture in centre
-        self.prev_cntr_pic_small = None #save small picture to replace bigger when center pic changed
         self.prev_cntr_pic_path = None #memorize which picture is to replace
         self.vid_preview_path = None #picture video preview is running
         self.vid_preview_fps = 0
@@ -42,6 +41,7 @@ class PicRowCanvas(tk.Canvas):
             _, h  = self.get_item_width_height(items[0]) 
             self.vid_preview_image = self.open_pic_file_to_photo(self.vid_preview_path, h)
             self.itemconfigure(items[0], image=self.vid_preview_image) 
+            self.photo_images[self.vid_preview_path] = self.vid_preview_image
             t_used = (time.time() - t_start) * 1000
             t_next = VID_PREV_MS - t_used
             t_next = t_next if t_next >= 2 else 2
@@ -63,6 +63,9 @@ class PicRowCanvas(tk.Canvas):
 
     def on_mouse_leave_pic(self, event):
         self.vid_preview_path = None
+        if self.act_prev_capt is not None:
+            self.act_prev_capt.release()
+            self.act_prev_capt = None
      
 
     def get_item_width_height(self, item):
@@ -111,27 +114,35 @@ class PicRowCanvas(tk.Canvas):
         return ImageTk.PhotoImage(img)
     
         
-    def add_pic_to_row(self, image_path):
+    def add_pic_to_row(self, image_path, size_h):
         if os.path.exists(image_path):
-            photo = self.open_pic_file_to_photo(image_path, THUMBNAIL_H)
+            self.photo_images[image_path] = self.open_pic_file_to_photo(image_path, size_h)
             self.image_paths.append(image_path)
-            self.photo_images.append(photo)
 
             position = len(self.labels) * 120 + 10
-            image_item = self.create_image(position, 0, anchor=tk.NW, image=photo, tags=[image_path])
+            image_item = self.create_image(position, 0, anchor=tk.NW, image=self.photo_images[image_path], tags=[image_path])
             self.tag_bind(image_path, "<Enter>", self.on_mouse_enter_pic)
             self.tag_bind(image_path,"<Leave>", self.on_mouse_leave_pic)
             text_item = self.create_text(position, THUMBN_CNR_H + 1, text=os.path.basename(image_path), anchor=tk.NW, tags=[image_path])
             self.labels[image_path] = (image_item, text_item)
 
 
+    def resize_height_pic_in_row(self, image_path, size_h):
+        if os.path.exists(image_path):
+            self.photo_images[image_path] = self.open_pic_file_to_photo(image_path, size_h)
+            items = self.labels[image_path] #restore previous center pic to small
+            self.itemconfig(items[0], image=self.photo_images[image_path])
+
+
     def delete_pic_from_row(self, image_path):
-        if image_path in self.image_paths:
-            self.image_paths.remove(image_path)
+        if image_path in self.photo_images:
+            self.photo_images.pop(image_path)
         if image_path in self.labels:
             image_item, text_item = self.labels.pop(image_path)
             self.delete(image_item)
             self.delete(text_item)
+        if image_path in self.image_paths:
+            self.image_paths.remove(image_path)
 
 
     def update_positions(self, path_centerpic=None):
@@ -149,16 +160,7 @@ class PicRowCanvas(tk.Canvas):
             image_width, _ = self.get_item_width_height(items[0])
             text_width, _ = self.get_item_width_height(items[1]) 
             if i == i_center: #center picture
-                if path_centerpic != self.prev_cntr_pic_path:
-                    if self.prev_cntr_pic_path is not None:
-                        if self.prev_cntr_pic_path in self.labels: 
-                            prev_items = self.labels[self.prev_cntr_pic_path] #restore previous center pic to small
-                            self.itemconfig(prev_items[0], image=self.prev_cntr_pic_small)
-                    self.prev_cntr_pic_small = self.itemcget(items[0], 'image') #memorize reference to small pic for restore
-                    self.prev_cntr_pic_path = path_centerpic  #memorize path for small pic restore 
-                    self.cntr_pic_bigger = self.open_pic_file_to_photo(path_centerpic, THUMBN_CNR_H)
                 pos_y = 0
-                self.itemconfig(items[0], image=self.cntr_pic_bigger)
                 image_width, _ = self.get_item_width_height(items[0])
                 pos_x = centerpos - (image_width if image_width > text_width else text_width)/2 
             else:
@@ -166,6 +168,7 @@ class PicRowCanvas(tk.Canvas):
                 pos_x -= (image_width if image_width > text_width else text_width) + 10
             self.coords(items[0], pos_x, pos_y)
             self.coords(items[1], pos_x, THUMBN_CNR_H + 1)
+
 
         for i in range(i_center, len(self.image_paths), 1):
             items = self.labels[self.image_paths[i]]
@@ -193,10 +196,18 @@ class PicRowCanvas(tk.Canvas):
         i_delete = 0
         for i, picpath in enumerate(list_pic_paths):
             if picpath not in self.image_paths:
-                self.add_pic_to_row(picpath)
-            tmppcp = self.image_paths.pop(self.image_paths.index(picpath))
-            self.image_paths.insert(i, tmppcp)
+                size_h = THUMBN_CNR_H if picpath == path_centerpic else THUMBNAIL_H
+                self.add_pic_to_row(picpath, size_h)
+            elif path_centerpic != self.prev_cntr_pic_path: #if centerpic has changed since last time
+                if picpath == path_centerpic:
+                    self.resize_height_pic_in_row(picpath, THUMBN_CNR_H)
+                elif picpath == self.prev_cntr_pic_path:   
+                    self.resize_height_pic_in_row(picpath, THUMBNAIL_H)
+
+            tmppcp = self.image_paths.pop(self.image_paths.index(picpath)) #extract to put at new index
+            self.image_paths.insert(i, tmppcp) #new index as in list_pic_path
             i_delete = i + 1
+        self.prev_cntr_pic_path = path_centerpic
         to_delete = [self.image_paths[i] for i in range(i_delete, len(self.image_paths))]
         for td in to_delete:
             self.delete_pic_from_row(td)               
