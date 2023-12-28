@@ -178,15 +178,6 @@ def get_picname_index(time_line_table, name, source=None):
             break
     return index
 
-def rename_moved_files(timeline_table, workpath):
-    if timeline_table is not None:
-        for sources in timeline_table:
-            for pic in sources:
-                if pic[1] != pic[2]:
-                    old_name = str(pic[0]) + pic[4]
-                    new_name = old_name.replace(timestamp_to_filenamedatetm(pic[1]), timestamp_to_filenamedatetm(pic[2]))
-                    os.rename(os.path.join(workpath, old_name), os.path.join(workpath, new_name)) 
-
 
 def tstamp_to_nice_date(tstamp, factor_pix, tstamp_min):
     n_d = timestamp_to_filenamedatetm((tstamp/factor_pix) + tstamp_min)

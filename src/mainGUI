@@ -23,7 +23,7 @@ TLINE_ITEM_COLORS = (
             'red', 'green', 'blue', 'yellow', 'magenta', 'cyan', 'orange', 'purple',
             'dark green', 'navy', 'maroon', 'olive', 'teal', 'brown', 'slate gray'
         )
-BG_COLOR = 'lightgray'
+BG_COLOR = 'silver'
 
 class App():
 
@@ -87,8 +87,6 @@ class App():
         # frame 3 Canvas timeline
         self.frame3 = Frame(self.rootW, bg=BG_COLOR)
         self.frame3.pack(side=tk.TOP, expand=0, fill=tk.X, pady=(0, 0))
-        self.lbl_curs_pos = Label(self.frame3, text = "0")
-        self.lbl_curs_pos.pack(side=tk.BOTTOM)
         self.canvas_Tline = tk.Canvas(self.frame3, bg='white', height=TLCANVAS_H, scrollregion=(0,0,TLCANVAS_W, TLCANVAS_H))
         self.timescroll = tk.Scrollbar(self.frame3, orient='horizontal', command=self.canvas_Tline.xview)
         self.timescroll.pack(side=tk.BOTTOM, fill=tk.X)
@@ -96,7 +94,21 @@ class App():
         self.canvas_Tline.configure(xscrollcommand=self.timescroll.set)
         self.cursorText = self.canvas_Tline.create_text(1, 1, fill='black', text='')
 
-         
+        # frame 4 Canvas progress text
+        self.frame4 = Frame(self.rootW, bg=BG_COLOR)
+        self.frame4.pack(side=tk.TOP, expand=0, fill=tk.X, pady=(0, 0))
+        self.lbl_curs_pos = Label(self.frame4, text="0")
+        self.lbl_curs_pos.pack(side=tk.LEFT)
+        self.txt_progress_text = tk.Text(self.frame4, wrap='word',
+                                        state='normal', pady=10)
+        self.txt_progress_text.insert('end', 'progress:\n\n')
+        self.txt_progress_text.config(state="disabled")
+        self.txt_progress_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, 
+                                    padx=(10,0), pady=(10,10))
+        self.progtxtcroll = tk.Scrollbar(self.frame4, orient='vertical',
+                                         command=self.txt_progress_text.yview)
+        self.progtxtcroll.pack(side=tk.RIGHT, fill=tk.Y, pady=(10,10))
+        self.txt_progress_text.configure(yscrollcommand=self.progtxtcroll.set)
     
     ### events
 
@@ -122,7 +134,7 @@ class App():
         self.rootW.config(cursor='watch')
         self.rootW.update_idletasks()
         if self.glob_workpath is not None and len(self.glob_list_pics) > 0:
-            hlpfnc.rename_moved_files(self.glob_timelinetable, self.glob_workpath)
+            self.rename_moved_files(self.glob_timelinetable, self.glob_workpath)
 
         self.set_workpath_read_files(path=self.glob_workpath)
         if len(self.glob_list_pics) > 0:
@@ -268,6 +280,19 @@ class App():
             self.glob_list_pics = list(filter(lambda x: hlpfnc.is_pic(x) or hlpfnc.is_video(x), item_list))
             self.var_workpathvalue.set(self.glob_workpath)
 
+            progtxt_new_line1 = "Workpath \"" + self.glob_workpath + "\" contains the following sources:\n"
+            progtxt_new = progtxt_new_line1
+            for source in self.glob_list_sourcedir:
+                progtxt_new = progtxt_new + "   " + source + "\n"
+            progtxt_new = progtxt_new + "\n"
+
+            progtxt = str(self.txt_progress_text.get('1.0', tk.END))
+            ind = progtxt.rfind(progtxt_new_line1)
+            if ind >= 0:
+                if progtxt.rfind(progtxt_new) != ind:
+                    self.print_progress_txt(progtxt_new)
+            else:
+                self.print_progress_txt(progtxt_new)
 
     def draw_scaletick(self, interval=3600, length=100, width=1, color='#a2a5a6', utcoffs_h=0):
         tick_t = interval - self.glob_tstamp_min % interval + utcoffs_h * 3600
@@ -305,6 +330,31 @@ class App():
         return round(self.glob_tstamp_min + (pixel-self.glob_tline_start_pix)/self.glob_tline_factor_pix)
 
 
+    def rename_moved_files(self, timeline_table, workpath):
+        cntOK, cntNOK = 0, 0
+        self.print_progress_txt("renaming pics in workfolder \"" + self.glob_workpath + "\":\n\n")
+        if timeline_table is not None:
+            for sources in timeline_table:
+                for pic in sources:
+                    if pic[1] != pic[2]:
+                        old_name = str(pic[0]) + pic[4]
+                        new_name = old_name.replace(hlpfnc.timestamp_to_filenamedatetm(pic[1]),
+                                                    hlpfnc.timestamp_to_filenamedatetm(pic[2]))
+                        self.print_progress_txt("   " + str(old_name) + "  to\n   " + str(new_name) + "\n")
+                        try:
+                            os.rename(os.path.join(workpath, old_name), os.path.join(workpath, new_name))
+                        except Exception as e:
+                            self.print_progress_txt("   error:" + str(e) + "\n\n")
+                            cntNOK += 1
+                        else:
+                            self.print_progress_txt("   successful\n\n")
+                            cntOK += 1
+
+        self.print_progress_txt("renaming pics ENDED in workfolder \"" + self.glob_workpath + "\n")
+        self.print_progress_txt("   successful: " + str(cntOK) + "\n") 
+        self.print_progress_txt("   error: " + str(cntNOK) + "\n\n")
+
+
     def check_exists_ask_overwrite(self, destpath):
         if os.path.exists(destpath):
             path = os.path.dirname(destpath)
@@ -328,9 +378,12 @@ class App():
 
 
     def merge_pics_from_sourcefolders(self, workpath):
+        cntOK, cntNOK, cntSKP = 0, 0, 0
         item_list = os.listdir(workpath)
         self.glob_list_sourcedir = list(filter(lambda x: os.path.isdir(os.path.join(workpath, x)), item_list))
         act_folderpath = workpath
+
+        self.print_progress_txt("merging pics in workfolder \"" + self.glob_workpath + "\":\n\n")
         for folder in self.glob_list_sourcedir:
             act_folderpath = os.path.join(workpath, folder)
             pic_list = [file for file in os.listdir(act_folderpath) if hlpfnc.is_pic(file) or hlpfnc.is_video(file)] 
@@ -357,26 +410,40 @@ class App():
             for i, pic in enumerate(pic_list):
                 act_destpath = os.path.join(workpath, newname_list[i])
                 act_destpath = self.check_exists_ask_overwrite(act_destpath)
-                print(pic)
+                self.print_progress_txt(pic+ "  to\n")
                 if act_destpath != None:
-                    print(os.path.basename(act_destpath))
+                    self.print_progress_txt(os.path.basename(act_destpath) + "\n")
                 else:
-                    print(newname_list[i])
+                    self.print_progress_txt(newname_list[i] + "\n")
                 if act_destpath == None:
-                    print("skiped!\n")
+                    self.print_progress_txt("skiped!\n\n")
+                    cntSKP += 1
                 else:
                     try:
                         shutilcopy2(os.path.join(act_folderpath, pic), act_destpath)
-                        print("OK (copied successful)")
+                        self.print_progress_txt("OK (copied successful)\n")
+                        cntOK += 1
                     except Exception as e:
-                        print("error:" + str(e))
+                        self.print_progress_txt("error:" + str(e) + "\n\n")
+                        cntNOK += 1
                     finally:
-                        print('\n') 
+                        self.print_progress_txt('\n\n') 
         
         item_list = os.listdir(workpath)
+        self.print_progress_txt("merging pics ENDED in workfolder \"" + self.glob_workpath + "\n")
+        self.print_progress_txt("   successful: " + str(cntOK) + "\n") 
+        self.print_progress_txt("   error: " + str(cntNOK) + "\n")
+        self.print_progress_txt("   skipped: " + str(cntSKP) + "\n\n")
         self.glob_list_pics = list(filter(lambda x: hlpfnc.is_pic(x) or hlpfnc.is_video(x), item_list))
 
 
+    def print_progress_txt(self, text):
+        self.txt_progress_text.config(state="normal")
+        self.txt_progress_text.insert('end', text)
+        self.txt_progress_text.config(state="disabled")
+             
+        self.txt_progress_text.see(tk.END)
+        self.txt_progress_text.update_idletasks()
 
 app = App()
 app.rootW.mainloop()
