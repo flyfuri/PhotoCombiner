@@ -201,6 +201,7 @@ class App():
         else: 
             self.glob_move_mode_all = 1
         self.on_mouse_enter_canvas()
+        
 
     def on_tlcanvas_right_click(self, event):
         # Create a menu
@@ -399,7 +400,7 @@ class App():
                     tmp_name = "IMG"
                 tmp_datetimepatrn = hlpfnc.get_date_time_from_name(pic_name)
                 if tmp_datetimepatrn == None: # take creation time if not in name already
-                    creation_time_sec1970 = os.path.getctime(os.path.join(act_folderpath, pic))
+                    creation_time_sec1970 = os.path.getmtime(os.path.join(act_folderpath, pic))
                     tmp_datetimepatrn = hlpfnc.timestamp_to_filenamedatetm(creation_time_sec1970)
                     tmp_info = pic_name[pic_name.find("_") : ]
                 else:
