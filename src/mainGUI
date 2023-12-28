@@ -198,11 +198,9 @@ class App():
     def on_move_mode_change(self, event, mode):
         if mode == 0:
             self.glob_move_mode_all = 0
-            self.canvas_Tline.itemconfigure(self.cursorText, text="1")
         else: 
             self.glob_move_mode_all = 1
-            self.canvas_Tline.itemconfigure(self.cursorText, text="source")
-
+        self.on_mouse_enter_canvas()
 
     def on_tlcanvas_right_click(self, event):
         # Create a menu
@@ -229,7 +227,7 @@ class App():
         if self.glob_move_mode_all == 0:
             self.canvas_Tline.itemconfigure(self.cursorText, text="1")
         elif self.glob_move_mode_all == 1: 
-            self.canvas_Tline.itemconfigure(self.cursorText, text="all")
+            self.canvas_Tline.itemconfigure(self.cursorText, text="source")
         
 
     def on_mouse_leave_canvas(self, event):
@@ -279,6 +277,7 @@ class App():
             self.glob_list_pics = list(filter(lambda x: hlpfnc.is_pic(x) or hlpfnc.is_video(x), item_list))
             self.var_workpathvalue.set(self.glob_workpath)
 
+            # only add progress text if path or sources have changed..
             progtxt_new_line1 = "Workpath \"" + self.glob_workpath + "\" contains the following sources:\n"
             progtxt_new = progtxt_new_line1
             for source in self.glob_list_sourcedir:
@@ -431,7 +430,7 @@ class App():
                         self.print_progress_txt("error:" + str(e) + "\n\n")
                         cntNOK += 1
                     finally:
-                        self.print_progress_txt('\n\n') 
+                        self.print_progress_txt('\n\n')
         
         item_list = os.listdir(workpath)
         self.print_progress_txt("merging pics ENDED in workfolder \"" + self.glob_workpath + "\n")
