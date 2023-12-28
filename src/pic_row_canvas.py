@@ -202,7 +202,7 @@ class PicRowCanvas(tk.Canvas):
             #    position += (image_width if image_width > text_width else text_width) + 10
 
 
-    def set_all_pics(self, list_pic_paths, path_centerpic=None):
+    def set_all_pics(self, list_pic_paths=[], path_centerpic=None):
         i_delete = 0
         for i, picpath in enumerate(list_pic_paths):
             if picpath not in self.image_paths:

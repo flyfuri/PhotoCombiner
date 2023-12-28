@@ -116,8 +116,7 @@ class App():
         self.set_workpath_read_files()
         if len(self.glob_list_sourcedir) > 0:
             self.btn_merge.configure(state=tk.NORMAL)
-        if len(self.glob_list_pics) > 0:
-                self.create_timeline()
+        self.create_timeline()
 
     
     def on_click_btn_merge(self):
@@ -310,18 +309,23 @@ class App():
     def create_timeline(self): 
         #list_sources = [x[0][3] for x in self.glob_timelinetable]
         self.canvas_Tline.delete('all')  
-        self.cursorText = self.canvas_Tline.create_text(1, 1, fill='black', text='')       
-        self.glob_timelinetable = hlpfnc.create_timeline_table(self.glob_list_pics)
-        self.glob_tstamp_min, self.glob_tstamp_max = hlpfnc.calc_tline_minmax(self.glob_timelinetable)
-        self.glob_tstamp_min -= 3600
-        self.glob_tstamp_max += 3600
-        self.glob_tline_start_pix, self.glob_tline_end_pix, self.glob_tline_factor_pix = hlpfnc.calc_tline_minmax_pixel(0,TLCANVAS_W,self.glob_tstamp_min, self.glob_tstamp_max)
-        self.draw_scaletick(900, length=50, width=1, utcoffs_h=0)
-        self.draw_scaletick(3600, length=100, width=2, utcoffs_h=0)
-        self.draw_scaletick(86400, length=200, width=3, utcoffs_h=0) #days 24*3600
-        for i, source in enumerate(self.glob_timelinetable):
-            self.draw_tlitems_for_source(source, TLINE_ITEM_COLORS[i % len(TLINE_ITEM_COLORS)])
-
+        self.cursorText = self.canvas_Tline.create_text(1, 1, fill='black', text='') 
+        if len(self.glob_list_pics) > 0:      
+            self.glob_timelinetable = hlpfnc.create_timeline_table(self.glob_list_pics)
+            self.glob_tstamp_min, self.glob_tstamp_max = hlpfnc.calc_tline_minmax(self.glob_timelinetable)
+            self.glob_tstamp_min -= 3600
+            self.glob_tstamp_max += 3600
+            self.glob_tline_start_pix, self.glob_tline_end_pix, self.glob_tline_factor_pix = hlpfnc.calc_tline_minmax_pixel(0,TLCANVAS_W,
+                                                                                                                            self.glob_tstamp_min, 
+                                                                                                                            self.glob_tstamp_max)
+            self.draw_scaletick(900, length=50, width=1, utcoffs_h=0)
+            self.draw_scaletick(3600, length=100, width=2, utcoffs_h=0)
+            self.draw_scaletick(86400, length=200, width=3, utcoffs_h=0) #days 24*3600
+            for i, source in enumerate(self.glob_timelinetable):
+                self.draw_tlitems_for_source(source, TLINE_ITEM_COLORS[i % len(TLINE_ITEM_COLORS)])
+        else:
+            self.glob_timelinetable = None
+            self.canvas_picrow.set_all_pics() #delete all pics from row
 
     def tstamp_to_pixel(self, tstamp):
         return round(self.glob_tline_start_pix + (tstamp-self.glob_tstamp_min)*self.glob_tline_factor_pix)
