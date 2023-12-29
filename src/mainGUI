@@ -78,8 +78,8 @@ class App():
         self.btn_merge.pack(side=tk.LEFT, pady=(2,2))
         self.btn_rename = tk.Button(self.frame1, height=BUTTON_H, text="rename moved pics",command=self.on_click_btn_rename, state=tk.DISABLED)
         self.btn_rename.pack(side=tk.LEFT, pady=(2,2))
-        self.btn_rename = tk.Button(self.frame1, height=BUTTON_H, width=10, text="help",command=self.on_click_btn_help)
-        self.btn_rename.pack(side=tk.RIGHT, pady=(2,2))
+        self.btn_help = tk.Button(self.frame1, height=BUTTON_H, width=10, text="help",command=self.on_click_btn_help)
+        self.btn_help.pack(side=tk.RIGHT, pady=(2,2))
         
         # frame 2 Canvas picture row
         self.frame2 = Frame(self.rootW, bg=BG_COLOR)
