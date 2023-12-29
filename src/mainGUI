@@ -13,6 +13,7 @@ from shutil import copy2 as shutilcopy2
 
 import helperfunctions as hlpfnc
 import pic_row_canvas as prcanvas
+import help_read_me_dialog as hlpdlg
 
 CURSORTEXT_OFFX = 5
 CURSORTEXT_OFFY = 22
@@ -77,6 +78,8 @@ class App():
         self.btn_merge.pack(side=tk.LEFT, pady=(2,2))
         self.btn_rename = tk.Button(self.frame1, height=BUTTON_H, text="rename moved pics",command=self.on_click_btn_rename, state=tk.DISABLED)
         self.btn_rename.pack(side=tk.LEFT, pady=(2,2))
+        self.btn_rename = tk.Button(self.frame1, height=BUTTON_H, width=10, text="help",command=self.on_click_btn_help)
+        self.btn_rename.pack(side=tk.RIGHT, pady=(2,2))
         
         # frame 2 Canvas picture row
         self.frame2 = Frame(self.rootW, bg=BG_COLOR)
@@ -139,6 +142,11 @@ class App():
         if len(self.glob_list_pics) > 0:
                 self.create_timeline()
         self.rootW.config(cursor='')
+
+
+    def on_click_btn_help(self):
+        helpdialog = hlpdlg.ReadMeMessageBox(parent=self.rootW, title="PhotoCombiner help")
+        helpdialog.show_markdown_readme()
 
 
     def on_tlitem_mouse_down(self, event):
