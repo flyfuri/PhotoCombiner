@@ -200,20 +200,20 @@ class App():
 
     def on_tlitem_mouse_down(self, event):
         self.glob_draging_tlitem = True
-        event.widget.drag_data = {'x': event.x + self.canvas_Tline.xview()[0]*self.glob_tlcanvas_width}
+        event.widget.drag_data = {'x': self.canvas_Tline.canvasx(event.x)}
         self.canvas_Tline.scan_mark(event.x, 0)  
         
 
     def on_tlitem_drag_motion(self, event):
-        x = event.x + self.canvas_Tline.xview()[0]*self.glob_tlcanvas_width - event.widget.drag_data['x']
+        x = self.canvas_Tline.canvasx(event.x) - event.widget.drag_data['x']
         tag = event.widget.gettags(tk.CURRENT)[self.glob_move_mode_all]
         self.canvas_Tline.move(tag, x, 0)
         #event.widget.move(tk.CURRENT, x, 0)
-        event.widget.drag_data = {'x': event.x + self.canvas_Tline.xview()[0]*self.glob_tlcanvas_width}
+        event.widget.drag_data = {'x': self.canvas_Tline.canvasx(event.x)}
         self.canvas_Tline.scan_dragto(event.x, 0, gain=-2)
 
         #update new_timestamps
-        new_x = event.x + self.canvas_Tline.xview()[0]*self.glob_tlcanvas_width
+        new_x = self.canvas_Tline.canvasx(event.x)
         pic_name, pic_source = event.widget.gettags(tk.CURRENT)[:2]
         source_index = hlpfnc.get_source_index(self.glob_timelinetable, pic_source)
         if source_index > -1:
@@ -271,11 +271,11 @@ class App():
 
 
     def on_mouse_motion_canvas(self, event):
-        self.canvas_Tline.coords(self.cursorText, event.x + CURSORTEXT_OFFX + self.canvas_Tline.xview()[0]*TLCANVAS_W,
+        self.canvas_Tline.coords(self.cursorText, self.canvas_Tline.canvasx(event.x) + CURSORTEXT_OFFX,
                                  event.y + CURSORTEXT_OFFY) 
-        self.lbl_curs_pos.configure(text=hlpfnc.tstamp_to_nice_date((event.x + self.canvas_Tline.xview()[0]*TLCANVAS_W),
-                                                                    self.glob_tline_factor_pix,
-                                                                    self.glob_tstamp_min))
+        self.lbl_curs_pos.configure(text=self.canvas_Tline.canvasx(event.x))#hlpfnc.tstamp_to_nice_date(self.canvas_Tline.canvasx(event.x),
+                                                                    #self.glob_tline_factor_pix,
+                                                                    #self.glob_tstamp_min)) 
         if event.x < 10:
             self.canvas_Tline.xview_scroll(-1, "units")
         elif event.x > self.canvas_Tline.winfo_width() - 10:
