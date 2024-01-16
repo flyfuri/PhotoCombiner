@@ -157,7 +157,13 @@ class App():
         helpdialog.show_markdown_readme()
 
 
-    def on_tlcanvas_mouse_wheel(self, event):
+    def on_tlcanvas_zoomIN_mouseUP(self, event):
+        self.on_tlcanvas_mouse_wheel(event, alt_delta=1)
+
+    def on_tlcanvas_zoomOUT_mouseUP(self, event):
+        self.on_tlcanvas_mouse_wheel(event, alt_delta=-1)
+
+    def on_tlcanvas_mouse_wheel(self, event, alt_delta=0):
         #memorize dimensions before scale
         old_canvas_width = self.glob_tlcanvas_width
         oldscroll_visible_pix = self.canvas_Tline.winfo_width()
@@ -171,7 +177,9 @@ class App():
             cursor_x = self.canvas_Tline.canvasx(x_closest_pic)
             cursor_x_view = x_closest_pic
 
-        zoom_factor = TLCANVAS_SCL_FACT if event.delta > 0 else  1 / TLCANVAS_SCL_FACT
+
+        delta = alt_delta if alt_delta !=0 else event.delta
+        zoom_factor = TLCANVAS_SCL_FACT if delta > 0 else  1 / TLCANVAS_SCL_FACT
         self.glob_tlcanvas_width = max(1000, min(500000, self.glob_tlcanvas_width * zoom_factor)) 
 
         factor = self.glob_tlcanvas_width / old_canvas_width
@@ -292,15 +300,14 @@ class App():
                                                 path_centerpic=os.path.join(self.glob_workpath,self.glob_center_pic))
 
 
-    def create_tlitem_for_pic(self, tstamp , description, source, color='#a2a5a6', text="des",):
+    def create_tlitem_for_pic(self, tstamp , description, source, posy=15, color='#a2a5a6', text="des",):
         x = self.tstamp_to_pixel(tstamp)
-        y = 15  # Adjust the y-position if needed
         act_tags = [description, source, ('itm_triangle' + description)]
-        item_triangle = self.canvas_Tline.create_polygon(x, y, x-5, y-10, x+5, y-10, fill=color, tags=act_tags)
+        item_triangle = self.canvas_Tline.create_polygon(x, posy, x-5, posy-10, x+5, posy-10, fill=color, tags=act_tags)
         act_tags[2] = 'itm_line' + description
-        item_line = self.canvas_Tline.create_line(x, y, x, y+40, fill=color, tags=act_tags) 
+        item_line = self.canvas_Tline.create_line(x, posy, x, posy+40, fill=color, tags=act_tags) 
         act_tags[2] = 'itm_txt' + description
-        item_text = self.canvas_Tline.create_text(x, y + 65, angle=90, anchor=tk.E, fill=color, 
+        item_text = self.canvas_Tline.create_text(x, posy + 65, angle=90, anchor=tk.E, fill=color, 
                                              text=description if text == "des" else text, font=13,
                                              tags=act_tags)
         self.canvas_Tline.tag_bind(description, '<ButtonPress-1>', self.on_tlitem_mouse_down)
@@ -339,17 +346,28 @@ class App():
             else:
                 self.print_progress_txt(progtxt_new)
 
-    def draw_scaletick(self, interval=3600, length=100, width=1, color='#a2a5a6', utcoffs_h=0):
+    def draw_scaletick(self, interval=3600, posy=20, length=100, width=1, color='#a2a5a6', utcoffs_h=0):
         tick_t = interval - self.glob_tstamp_min % interval + utcoffs_h * 3600
         tick = int(tick_t * self.glob_tline_factor_pix) + self.glob_tline_start_pix 
         while tick <= self.glob_tline_end_pix:
-            line = self.canvas_Tline.create_line(tick, 0, tick, length, fill=color, tags='ticks', width=width)
+            line = self.canvas_Tline.create_line(tick, posy, tick, posy+length, fill=color, tags='ticks', width=width)
             tick = tick + interval * self.glob_tline_factor_pix
 
 
-    def draw_tlitems_for_source(self, srctable, color):
+    def draw_zoom_button(self, posx, posy, w=100, h=10, text="zoom", tag="zoom"):
+        btzoom = self.canvas_Tline.create_rectangle(posx, posy, posx+w, posy+h, tags=[tag], fill='silver')
+        approx_text_length = len(text) * 9 + 20
+        posx = approx_text_length
+        while True:
+            bttxt = self.canvas_Tline.create_text(posx, posy+5, text=text, tags=[tag])
+            posx = posx + approx_text_length
+            if posx > self.glob_tlcanvas_width - approx_text_length:
+                break
+
+
+    def draw_tlitems_for_source(self, srctable, posy=15, color='#a2a5a6'):
         for record in srctable:
-            self.create_tlitem_for_pic(record[1], record[0], record[3], color, hlpfnc.calc_text_timeline_item(record))
+            self.create_tlitem_for_pic(record[1], record[0], record[3], posy=posy, color=color, text=hlpfnc.calc_text_timeline_item(record))
 
 
     def create_timeline(self, createTable=True): 
@@ -365,11 +383,19 @@ class App():
             self.glob_tline_start_pix, self.glob_tline_end_pix, self.glob_tline_factor_pix = hlpfnc.calc_tline_minmax_pixel(0,self.glob_tlcanvas_width,
                                                                                                                             self.glob_tstamp_min, 
                                                                                                                             self.glob_tstamp_max)
-            self.draw_scaletick(900, length=50, width=1, utcoffs_h=0)
-            self.draw_scaletick(3600, length=100, width=2, utcoffs_h=0)
-            self.draw_scaletick(86400, length=200, width=3, utcoffs_h=0) #days 24*3600
+            self.draw_zoom_button(0,0,self.glob_tlcanvas_width, 10, 
+                                  text="to zoom IN use mousewheel or click this button above the region you want to zoom", 
+                                  tag="zoomIN")
+            self.canvas_Tline.tag_bind("zoomIN", '<ButtonRelease-1>', self.on_tlcanvas_zoomIN_mouseUP) 
+            self.draw_zoom_button(0,self.canvas_Tline.winfo_height()-15,self.glob_tlcanvas_width, 10, 
+                                  text="to zoom OUT use mousewheel or click this button below the region you want to zoom", 
+                                  tag="zoomOUT")
+            self.canvas_Tline.tag_bind("zoomOUT", '<ButtonRelease-1>', self.on_tlcanvas_zoomOUT_mouseUP)
+            self.draw_scaletick(900, posy=20, length=50, width=1, utcoffs_h=0)
+            self.draw_scaletick(3600, posy=20, length=100, width=2, utcoffs_h=0)
+            self.draw_scaletick(86400, posy=20, length=200, width=3, utcoffs_h=0) #days 24*3600
             for i, source in enumerate(self.glob_timelinetable):
-                self.draw_tlitems_for_source(source, TLINE_ITEM_COLORS[i % len(TLINE_ITEM_COLORS)])
+                self.draw_tlitems_for_source(source, posy=35, color=TLINE_ITEM_COLORS[i % len(TLINE_ITEM_COLORS)])
         else:
             self.glob_timelinetable = None
             self.canvas_picrow.set_all_pics() #delete all pics from row
