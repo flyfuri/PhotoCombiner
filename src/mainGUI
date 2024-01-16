@@ -127,6 +127,7 @@ class App():
         self.glob_tlcanvas_width = TLCANVAS_W
         if len(self.glob_list_sourcedir) > 0:
             self.btn_merge.configure(state=tk.NORMAL)
+        self.canvas_picrow.delete('all')
         self.create_timeline()
 
     
